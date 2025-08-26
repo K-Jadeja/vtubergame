@@ -2,7 +2,6 @@
 import "./style.css";
 import { Application, Ticker } from "pixi.js";
 import { Live2DModel } from "pixi-live2d-display-lipsyncpatch";
-import { ttsEngine } from "./tts.js";
 
 // Register ticker for model updates
 Live2DModel.registerTicker(Ticker);
@@ -49,14 +48,6 @@ async function init() {
     alert("Could not load the scene list. Check the console.");
   }
 
-  // Initialize TTS system
-  try {
-    await ttsEngine.initialize();
-    console.log("TTS system initialized successfully");
-  } catch (error) {
-    console.error("Failed to initialize TTS system:", error);
-  }
-
   // Setup TTS controls
   document.getElementById("speak-btn").onclick = () => {
     const text = document.getElementById("tts-text").value;
@@ -72,7 +63,18 @@ async function init() {
       model.stopSpeaking();
       model.stopMotions();
     }
+    // Also stop Kokoro TTS
+    kokoroTTS.stop();
   };
+
+  // Initialize Kokoro TTS
+  try {
+    console.log("Initializing Kokoro TTS...");
+    await kokoroTTS.initialize();
+    console.log("Kokoro TTS initialized successfully");
+  } catch (error) {
+    console.warn("Kokoro TTS initialization failed, will use fallback:", error);
+  }
 
   console.log("Application initialized. Load a model to begin!");
 }
@@ -308,7 +310,7 @@ async function speakText(text) {
   try {
     // Generate TTS audio using Kokoro.js
     console.log("Generating TTS audio with lipsync...");
-    const audioUrl = await ttsEngine.generateSpeech(text);
+    const audioUrl = await kokoroTTS.generateSpeech(text);
     
     if (audioUrl) {
       console.log(`Generated TTS audio blob: ${audioUrl}`);
@@ -348,7 +350,178 @@ async function speakText(text) {
   }
 }
 
+// Kokoro TTS Integration
+class KokoroTTSManager {
+  constructor() {
+    this.worker = null;
+    this.isInitialized = false;
+    this.audioQueue = [];
+    this.isProcessing = false;
+  }
 
+  async initialize() {
+    try {
+      console.log('Initializing Kokoro TTS worker...');
+      this.worker = new Worker(new URL('./tts-worker.js', import.meta.url), { type: 'module' });
+      
+      return new Promise((resolve, reject) => {
+        this.worker.addEventListener('message', (e) => {
+          switch (e.data.status) {
+            case 'loading_model_ready':
+              console.log('Kokoro TTS model loaded successfully');
+              this.isInitialized = true;
+              resolve(true);
+              break;
+            case 'error':
+              console.error('Kokoro TTS error:', e.data.error);
+              this.isInitialized = false;
+              reject(new Error(e.data.error));
+              break;
+            case 'loading_model_progress':
+              const progress = Math.round(e.data.progress * 100);
+              console.log(`Loading Kokoro model: ${progress}%`);
+              break;
+          }
+        });
+
+        this.worker.addEventListener('error', (error) => {
+          console.error('Kokoro TTS worker error:', error);
+          this.isInitialized = false;
+          reject(error);
+        });
+      });
+    } catch (error) {
+      console.error('Failed to initialize Kokoro TTS:', error);
+      this.isInitialized = false;
+      return false;
+    }
+  }
+
+  async generateSpeech(text, voice = 'af_heart') {
+    if (!this.isInitialized) {
+      console.warn('Kokoro TTS not initialized, trying to initialize now...');
+      const initialized = await this.initialize();
+      if (!initialized) {
+        throw new Error('Failed to initialize Kokoro TTS');
+      }
+    }
+
+    return new Promise((resolve, reject) => {
+      const audioChunks = [];
+
+      const messageHandler = (e) => {
+        switch (e.data.status) {
+          case 'stream_audio_data':
+            // Convert ArrayBuffer to audio blob
+            audioChunks.push(e.data.audio);
+            break;
+          case 'complete':
+            // Combine all audio chunks into a single blob
+            try {
+              const combinedAudio = this.combineAudioChunks(audioChunks);
+              const audioUrl = URL.createObjectURL(combinedAudio);
+              this.worker.removeEventListener('message', messageHandler);
+              resolve(audioUrl);
+            } catch (error) {
+              this.worker.removeEventListener('message', messageHandler);
+              reject(error);
+            }
+            break;
+          case 'error':
+            this.worker.removeEventListener('message', messageHandler);
+            reject(new Error(e.data.error));
+            break;
+        }
+      };
+
+      this.worker.addEventListener('message', messageHandler);
+      this.worker.postMessage({ text, voice });
+    });
+  }
+
+  combineAudioChunks(audioChunks) {
+    if (audioChunks.length === 0) {
+      throw new Error('No audio chunks to combine');
+    }
+
+    if (audioChunks.length === 1) {
+      return new Blob([audioChunks[0]], { type: 'audio/wav' });
+    }
+
+    // Calculate total length
+    let totalLength = 0;
+    const audioArrays = audioChunks.map(chunk => {
+      const array = new Float32Array(chunk);
+      totalLength += array.length;
+      return array;
+    });
+
+    // Combine arrays
+    const combinedArray = new Float32Array(totalLength);
+    let offset = 0;
+    for (const array of audioArrays) {
+      combinedArray.set(array, offset);
+      offset += array.length;
+    }
+
+    // Convert to WAV blob
+    return this.floatArrayToWavBlob(combinedArray, 24000); // Kokoro uses 24kHz
+  }
+
+  floatArrayToWavBlob(floatArray, sampleRate) {
+    const numChannels = 1;
+    const bytesPerSample = 2;
+    const blockAlign = numChannels * bytesPerSample;
+    const byteRate = sampleRate * blockAlign;
+    const dataSize = floatArray.length * bytesPerSample;
+    const headerSize = 44;
+    const totalSize = headerSize + dataSize;
+
+    const buffer = new ArrayBuffer(totalSize);
+    const view = new DataView(buffer);
+
+    // WAV header
+    const writeString = (offset, string) => {
+      for (let i = 0; i < string.length; i++) {
+        view.setUint8(offset + i, string.charCodeAt(i));
+      }
+    };
+
+    writeString(0, 'RIFF');
+    view.setUint32(4, totalSize - 8, true);
+    writeString(8, 'WAVE');
+    writeString(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, byteRate, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, 16, true);
+    writeString(36, 'data');
+    view.setUint32(40, dataSize, true);
+
+    // Convert float samples to 16-bit PCM
+    let offset = 44;
+    for (let i = 0; i < floatArray.length; i++) {
+      const sample = Math.max(-1, Math.min(1, floatArray[i]));
+      const pcmSample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+      view.setInt16(offset, pcmSample, true);
+      offset += 2;
+    }
+
+    return new Blob([buffer], { type: 'audio/wav' });
+  }
+
+  stop() {
+    if (this.worker) {
+      this.worker.postMessage({ type: 'stop' });
+    }
+  }
+}
+
+// Create global Kokoro TTS instance
+const kokoroTTS = new KokoroTTSManager();
 
 function fallbackToBasicTTS(text) {
   console.log("Using basic browser TTS fallback (no lipsync)");
