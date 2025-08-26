@@ -107,6 +107,14 @@ export class TTSButtonHandler {
             this.audioPlayer.setTotalChunks(Math.ceil(text.length / 300));
             this.audioPlayer.reset();
 
+            // Set a timeout for the entire process (10 seconds)
+            this.currentTimeoutId = setTimeout(() => {
+                if (this.isProcessing) {
+                    console.log("TTS timeout reached, falling back to browser TTS");
+                    this.fallbackToBrowserTTS(text);
+                }
+            }, 10000);
+
             // Send text to worker for processing
             this.worker.postMessage({ 
                 type: "generate", 
@@ -119,6 +127,70 @@ export class TTSButtonHandler {
             updateProgress(100, "Error starting speech generation!");
             this.enableButton();
             this.isProcessing = false;
+        }
+    }
+
+    async fallbackToBrowserTTS(text) {
+        try {
+            console.log("Using browser TTS fallback with animation");
+            updateProgress(80, "Using browser TTS fallback...");
+            
+            // Clear any existing timeouts
+            if (this.currentTimeoutId) {
+                clearTimeout(this.currentTimeoutId);
+                this.currentTimeoutId = null;
+            }
+
+            const utterance = new SpeechSynthesisUtterance(text);
+
+            // Get available voices
+            const voices = speechSynthesis.getVoices();
+            if (voices.length > 0) {
+                const femaleVoice = voices.find(
+                    (voice) =>
+                        voice.name.toLowerCase().includes("female") ||
+                        voice.name.toLowerCase().includes("woman") ||
+                        voice.name.toLowerCase().includes("zira") ||
+                        voice.name.toLowerCase().includes("hazel")
+                );
+                if (femaleVoice) {
+                    utterance.voice = femaleVoice;
+                }
+            }
+
+            utterance.rate = 0.9;
+            utterance.pitch = 1.1;
+            utterance.volume = 1.0;
+
+            utterance.onstart = () => {
+                console.log("Browser TTS started");
+                updateProgress(90, "Speaking with browser TTS...");
+                
+                // Trigger talking motions
+                this.audioPlayer.triggerRandomMotion("tap_body") ||
+                    this.audioPlayer.triggerRandomMotion("idle") ||
+                    this.audioPlayer.triggerRandomMotion("Idle");
+            };
+
+            utterance.onend = () => {
+                console.log("Browser TTS ended");
+                updateProgress(100, "Speech completed successfully!");
+                this.onComplete();
+            };
+
+            utterance.onerror = (event) => {
+                console.error("Browser TTS error:", event);
+                updateProgress(100, "Speech failed!");
+                this.onComplete();
+            };
+
+            speechSynthesis.cancel();
+            speechSynthesis.speak(utterance);
+
+        } catch (error) {
+            console.error("Fallback TTS error:", error);
+            updateProgress(100, "Speech failed!");
+            this.onComplete();
         }
     }
 
@@ -147,6 +219,12 @@ export class TTSButtonHandler {
 
     // Called when processing completes
     onComplete() {
+        // Clear timeout if it exists
+        if (this.currentTimeoutId) {
+            clearTimeout(this.currentTimeoutId);
+            this.currentTimeoutId = null;
+        }
+        
         this.isProcessing = false;
         this.mode = "none";
         this.enableButton();
@@ -155,6 +233,13 @@ export class TTSButtonHandler {
     // Called when there's an error
     onError(error) {
         console.error("TTS error:", error);
+        
+        // Clear timeout if it exists
+        if (this.currentTimeoutId) {
+            clearTimeout(this.currentTimeoutId);
+            this.currentTimeoutId = null;
+        }
+        
         this.isProcessing = false;
         this.mode = "none";
         updateProgress(100, "Speech generation failed!");
