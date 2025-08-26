@@ -150,8 +150,8 @@ class FallbackTTSEngine {
       try {
         // Calculate duration based on text length (average speaking rate)
         const wordsPerMinute = 150;
-        const words = text.split(' ').length;
-        const baseDuration = (words / wordsPerMinute) * 60;
+        const wordCount = text.split(' ').length;
+        const baseDuration = (wordCount / wordsPerMinute) * 60;
         const duration = Math.max(1, baseDuration); // At least 1 second
         
         const sampleRate = audioContext.sampleRate;
