@@ -308,6 +308,14 @@ async function speakText(text) {
   console.log(`Speaking text: "${text}"`);
 
   try {
+    // Check if Kokoro TTS is ready
+    if (!kokoroTTS.isInitialized) {
+      console.log("Kokoro TTS is loading. Please wait...");
+      // Fallback to basic TTS for now
+      fallbackToBasicTTS(text);
+      return;
+    }
+    
     // Generate TTS audio using Kokoro.js
     console.log("Generating TTS audio with lipsync...");
     const audioUrl = await kokoroTTS.generateSpeech(text);
@@ -350,29 +358,37 @@ async function speakText(text) {
   }
 }
 
-// Kokoro TTS Integration
+// Kokoro TTS Integration based on StreamingKokoroJS architecture
 class KokoroTTSManager {
   constructor() {
     this.worker = null;
     this.isInitialized = false;
-    this.audioQueue = [];
+    this.audioChunks = [];
     this.isProcessing = false;
   }
 
   async initialize() {
+    if (this.isInitialized) return true;
+    
     try {
       console.log('Initializing Kokoro TTS worker...');
       this.worker = new Worker(new URL('./tts-worker.js', import.meta.url), { type: 'module' });
       
       return new Promise((resolve, reject) => {
+        const timeoutId = setTimeout(() => {
+          reject(new Error('Kokoro TTS initialization timeout'));
+        }, 60000); // 60 second timeout
+        
         this.worker.addEventListener('message', (e) => {
           switch (e.data.status) {
             case 'loading_model_ready':
+              clearTimeout(timeoutId);
               console.log('Kokoro TTS model loaded successfully');
               this.isInitialized = true;
               resolve(true);
               break;
             case 'error':
+              clearTimeout(timeoutId);
               console.error('Kokoro TTS error:', e.data.error);
               this.isInitialized = false;
               reject(new Error(e.data.error));
@@ -385,6 +401,7 @@ class KokoroTTSManager {
         });
 
         this.worker.addEventListener('error', (error) => {
+          clearTimeout(timeoutId);
           console.error('Kokoro TTS worker error:', error);
           this.isInitialized = false;
           reject(error);
@@ -399,27 +416,25 @@ class KokoroTTSManager {
 
   async generateSpeech(text, voice = 'af_heart') {
     if (!this.isInitialized) {
-      console.warn('Kokoro TTS not initialized, trying to initialize now...');
-      const initialized = await this.initialize();
-      if (!initialized) {
-        throw new Error('Failed to initialize Kokoro TTS');
-      }
+      throw new Error('Kokoro TTS is not initialized yet. Please wait for model to load.');
     }
 
     return new Promise((resolve, reject) => {
-      const audioChunks = [];
+      this.audioChunks = [];
 
       const messageHandler = (e) => {
         switch (e.data.status) {
           case 'stream_audio_data':
-            // Convert ArrayBuffer to audio blob
-            audioChunks.push(e.data.audio);
+            // Collect Float32Array audio data from worker
+            this.audioChunks.push(new Float32Array(e.data.audio));
+            // Notify worker that buffer has been processed
+            this.worker.postMessage({ type: "buffer_processed" });
             break;
           case 'complete':
-            // Combine all audio chunks into a single blob
+            // Convert all audio chunks to WAV blob compatible with Live2D
             try {
-              const combinedAudio = this.combineAudioChunks(audioChunks);
-              const audioUrl = URL.createObjectURL(combinedAudio);
+              const wavBlob = this.createWavBlob(this.audioChunks);
+              const audioUrl = URL.createObjectURL(wavBlob);
               this.worker.removeEventListener('message', messageHandler);
               resolve(audioUrl);
             } catch (error) {
@@ -439,80 +454,60 @@ class KokoroTTSManager {
     });
   }
 
-  combineAudioChunks(audioChunks) {
+  // Create a properly formatted WAV blob that Live2D can handle
+  createWavBlob(audioChunks) {
     if (audioChunks.length === 0) {
       throw new Error('No audio chunks to combine');
     }
 
-    if (audioChunks.length === 1) {
-      return new Blob([audioChunks[0]], { type: 'audio/wav' });
-    }
-
     // Calculate total length
-    let totalLength = 0;
-    const audioArrays = audioChunks.map(chunk => {
-      const array = new Float32Array(chunk);
-      totalLength += array.length;
-      return array;
-    });
-
-    // Combine arrays
-    const combinedArray = new Float32Array(totalLength);
+    const totalLength = audioChunks.reduce((sum, chunk) => sum + chunk.length, 0);
+    
+    // Combine all chunks into a single Float32Array
+    const combinedAudio = new Float32Array(totalLength);
     let offset = 0;
-    for (const array of audioArrays) {
-      combinedArray.set(array, offset);
-      offset += array.length;
+    for (const chunk of audioChunks) {
+      combinedAudio.set(chunk, offset);
+      offset += chunk.length;
     }
 
-    // Convert to WAV blob
-    return this.floatArrayToWavBlob(combinedArray, 24000); // Kokoro uses 24kHz
-  }
-
-  floatArrayToWavBlob(floatArray, sampleRate) {
-    const numChannels = 1;
-    const bytesPerSample = 2;
-    const blockAlign = numChannels * bytesPerSample;
-    const byteRate = sampleRate * blockAlign;
-    const dataSize = floatArray.length * bytesPerSample;
-    const headerSize = 44;
-    const totalSize = headerSize + dataSize;
-
-    const buffer = new ArrayBuffer(totalSize);
+    // Convert Float32Array to 16-bit PCM for WAV format
+    const sampleRate = 24000; // Kokoro model sample rate
+    const buffer = new ArrayBuffer(44 + combinedAudio.length * 2);
     const view = new DataView(buffer);
-
+    
     // WAV header
     const writeString = (offset, string) => {
       for (let i = 0; i < string.length; i++) {
         view.setUint8(offset + i, string.charCodeAt(i));
       }
     };
-
+    
     writeString(0, 'RIFF');
-    view.setUint32(4, totalSize - 8, true);
+    view.setUint32(4, 36 + combinedAudio.length * 2, true);
     writeString(8, 'WAVE');
     writeString(12, 'fmt ');
     view.setUint32(16, 16, true);
     view.setUint16(20, 1, true);
-    view.setUint16(22, numChannels, true);
+    view.setUint16(22, 1, true);
     view.setUint32(24, sampleRate, true);
-    view.setUint32(28, byteRate, true);
-    view.setUint16(32, blockAlign, true);
+    view.setUint32(28, sampleRate * 2, true);
+    view.setUint16(32, 2, true);
     view.setUint16(34, 16, true);
     writeString(36, 'data');
-    view.setUint32(40, dataSize, true);
-
+    view.setUint32(40, combinedAudio.length * 2, true);
+    
     // Convert float samples to 16-bit PCM
-    let offset = 44;
-    for (let i = 0; i < floatArray.length; i++) {
-      const sample = Math.max(-1, Math.min(1, floatArray[i]));
-      const pcmSample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
-      view.setInt16(offset, pcmSample, true);
-      offset += 2;
+    let offset2 = 44;
+    for (let i = 0; i < combinedAudio.length; i++) {
+      const sample = Math.max(-1, Math.min(1, combinedAudio[i]));
+      view.setInt16(offset2, sample * 0x7FFF, true);
+      offset2 += 2;
     }
-
+    
     return new Blob([buffer], { type: 'audio/wav' });
   }
-
+  
   stop() {
     if (this.worker) {
       this.worker.postMessage({ type: 'stop' });
