@@ -139,22 +139,43 @@ export class TTSEngine {
 
       console.log(`Generated audio URL: ${audioUrl}`);
 
-      // Use the model's speak function for lipsync
+      // Use the model's speak function for lipsync with timeout
       return new Promise((resolve, reject) => {
+        let finished = false;
+        
+        // Set up timeout (based on text length)
+        const estimatedDuration = Math.max(2000, text.length * 100); // 100ms per character, min 2 seconds
+        const timeout = setTimeout(() => {
+          if (!finished) {
+            finished = true;
+            console.log("TTS lipsync timeout - forcing completion");
+            URL.revokeObjectURL(audioUrl);
+            resolve();
+          }
+        }, estimatedDuration);
+
         model.speak(audioUrl, {
           volume: options.volume || 0.8,
           expression: options.expression,
           resetExpression: options.resetExpression !== false,
           crossOrigin: "anonymous",
           onFinish: () => {
-            console.log("TTS lipsync finished");
-            URL.revokeObjectURL(audioUrl); // Clean up
-            resolve();
+            if (!finished) {
+              finished = true;
+              clearTimeout(timeout);
+              console.log("TTS lipsync finished");
+              URL.revokeObjectURL(audioUrl); // Clean up
+              resolve();
+            }
           },
           onError: (err) => {
-            console.error("TTS lipsync error:", err);
-            URL.revokeObjectURL(audioUrl); // Clean up
-            reject(err);
+            if (!finished) {
+              finished = true;
+              clearTimeout(timeout);
+              console.error("TTS lipsync error:", err);
+              URL.revokeObjectURL(audioUrl); // Clean up
+              reject(err);
+            }
           },
         });
       });
