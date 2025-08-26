@@ -1,0 +1,342 @@
+/* src/style.css */
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+#app {
+  display: flex;
+  min-height: 100vh;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+#canvas {
+  width: 800px;
+  height: 600px;
+  border: 2px solid #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  background: linear-gradient(45deg, #1e3c72 0%, #2a5298 100%);
+  display: block;
+}
+
+#controls {
+  margin-left: 20px;
+  padding: 25px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  min-width: 350px;
+  max-width: 400px;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+}
+
+#controls h2 {
+  margin-top: 0;
+  color: #2c3e50;
+  text-align: center;
+  font-size: 1.5em;
+  border-bottom: 2px solid #3498db;
+  padding-bottom: 10px;
+}
+
+#controls h3 {
+  color: #34495e;
+  margin-top: 20px;
+  margin-bottom: 10px;
+  font-size: 1.1em;
+  border-left: 4px solid #3498db;
+  padding-left: 10px;
+}
+
+/* Model selector buttons */
+#model-selector {
+  margin-bottom: 20px;
+}
+
+#model-selector button {
+  width: 100%;
+  margin: 5px 0;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+#load-shizuku {
+  background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+  color: white;
+}
+
+#load-shizuku:hover {
+  background: linear-gradient(135deg, #ee5a24, #d63031);
+  transform: translateY(-2px);
+}
+
+#load-haru {
+  background: linear-gradient(135deg, #4834d4, #686de0);
+  color: white;
+}
+
+#load-haru:hover {
+  background: linear-gradient(135deg, #3742fa, #5f27cd);
+  transform: translateY(-2px);
+}
+
+/* Motion buttons */
+.motion-btn {
+  margin: 3px;
+  padding: 8px 12px;
+  border: none;
+  background: linear-gradient(135deg, #00b894, #00cec9);
+  color: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s ease;
+}
+
+.motion-btn:hover {
+  background: linear-gradient(135deg, #00a085, #00b3b3);
+  transform: scale(1.05);
+}
+
+.motion-btn.random-btn {
+  background: linear-gradient(135deg, #fdcb6e, #e17055);
+  font-weight: 600;
+}
+
+.motion-btn.random-btn:hover {
+  background: linear-gradient(135deg, #e17055, #d63031);
+}
+
+/* Expression buttons */
+.expression-btn {
+  margin: 5px 3px;
+  padding: 8px 12px;
+  border: none;
+  background: linear-gradient(135deg, #a29bfe, #6c5ce7);
+  color: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s ease;
+}
+
+.expression-btn:hover {
+  background: linear-gradient(135deg, #6c5ce7, #5f3dc4);
+  transform: scale(1.05);
+}
+
+.expression-btn.reset-btn {
+  background: linear-gradient(135deg, #636e72, #2d3436);
+  font-weight: 600;
+}
+
+.expression-btn.reset-btn:hover {
+  background: linear-gradient(135deg, #2d3436, #000000);
+}
+
+/* TTS controls */
+#tts-controls {
+  background: rgba(52, 152, 219, 0.1);
+  border-radius: 12px;
+  padding: 15px;
+  margin: 20px 0;
+}
+
+#tts-text {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #bdc3c7;
+  border-radius: 8px;
+  font-size: 14px;
+  margin-bottom: 12px;
+  box-sizing: border-box;
+  transition: border-color 0.3s ease;
+}
+
+#tts-text:focus {
+  outline: none;
+  border-color: #3498db;
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+}
+
+#speak-btn,
+#stop-btn {
+  margin: 5px;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+#speak-btn {
+  background: linear-gradient(135deg, #00b894, #00cec9);
+  color: white;
+}
+
+#speak-btn:hover {
+  background: linear-gradient(135deg, #00a085, #00b3b3);
+  transform: translateY(-2px);
+}
+
+#stop-btn {
+  background: linear-gradient(135deg, #e17055, #d63031);
+  color: white;
+}
+
+#stop-btn:hover {
+  background: linear-gradient(135deg, #d63031, #c0392b);
+  transform: translateY(-2px);
+}
+
+/* Model info */
+#model-info {
+  background: rgba(116, 185, 255, 0.1);
+  border-radius: 12px;
+  padding: 15px;
+  margin-top: 20px;
+}
+
+#info-content {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #2c3e50;
+}
+
+/* Scrollbar styling */
+#controls::-webkit-scrollbar {
+  width: 8px;
+}
+
+#controls::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
+#controls::-webkit-scrollbar-thumb {
+  background: rgba(52, 152, 219, 0.6);
+  border-radius: 4px;
+}
+
+#controls::-webkit-scrollbar-thumb:hover {
+  background: rgba(52, 152, 219, 0.8);
+}
+
+/* Motion and expression group styling */
+#motions > div,
+#expressions > div {
+  margin-bottom: 15px;
+  padding: 10px;
+  background: rgba(236, 240, 241, 0.7);
+  border-radius: 8px;
+}
+
+#motions strong,
+#expressions strong {
+  color: #2c3e50;
+  display: block;
+  margin-bottom: 8px;
+}
+
+/* Responsive design */
+@media (max-width: 1200px) {
+  #app {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  #controls {
+    margin-left: 0;
+    margin-top: 20px;
+    max-width: 800px;
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  #app {
+    padding: 10px;
+  }
+
+  #canvas {
+    width: 100%;
+    max-width: 400px;
+  }
+
+  #controls {
+    margin-top: 10px;
+    padding: 15px;
+    min-width: auto;
+  }
+
+  .motion-btn,
+  .expression-btn {
+    font-size: 11px;
+    padding: 6px 10px;
+  }
+}
+
+/* Animation keyframes */
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(52, 152, 219, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(52, 152, 219, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(52, 152, 219, 0);
+  }
+}
+
+.speaking {
+  animation: pulse 1.5s infinite;
+}
+
+/* Loading state */
+.loading {
+  position: relative;
+}
+
+.loading::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  border-top-color: transparent;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Live2D Test</title>
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="canvas"></canvas>
+      <div id="controls">
+        <h2>Live2D Model Test</h2>
+        <div id="model-selector">
+          <h3>Model:</h3>
+          <button id="load-shizuku">Load Shizuku (Cubism 2.1)</button>
+          <button id="load-haru">Load Haru (Cubism 4)</button>
+          <div id="scene-buttons"></div>
+        </div>
+        <div id="motions">
+          <h3>Motions:</h3>
+          <p>Load a model first</p>
+        </div>
+        <div id="expressions">
+          <h3>Expressions:</h3>
+          <p>Load a model first</p>
+        </div>
+        <div id="tts-controls">
+          <h3>Text to Speech:</h3>
+          <input
+            type="text"
+            id="tts-text"
+            placeholder="Enter text to speak"
+            value="Hello! I'm a Live2D model!"
+          />
+          <br />
+          <button id="speak-btn">Speak</button>
+          <button id="stop-btn">Stop</button>
+        </div>
+        <div id="model-info">
+          <h3>Model Info:</h3>
+          <div id="info-content">Load a model to see info</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Load Live2D cores before the module -->
+    <script src="/core/live2dcubismcore.js"></script>
+    <script src="/core/live2d.min.js"></script>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
