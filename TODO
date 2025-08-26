@@ -1,3 +1,103 @@
 - Add headings so we know which scene we are at
 - learn the codebase thoroughly
 - add browser tts for now
+- there should be no browser tts fallback. currently fallback does browser and random mp3 wihch is jarring/ just put a propper model loading thing/bar
+- just download the model from the start so browser does not have to download it. look up if that is possible and still works on client side
+- need to implement random movement or expressions while lipsync to make realistic
+- getting errors like thistransformers.min.js:1 An uncaught WebGPU validation error was raised: [Invalid Buffer (unlabeled)] is invalid.
+- While validating entries[0] as a Buffer.
+  Expected entry layout: {type: BufferBindingType::ReadOnlyStorage, minBindingSize: 16, hasDynamicOffset: 0}
+- While validating [BindGroupDescriptor ""Add""] against [BindGroupLayout (unlabeled)]
+- While calling [Device].CreateBindGroup([BindGroupDescriptor ""Add""]).
+
+device.onuncapturederror @ transformers.min.js:1
+transformers.min.js:1 An uncaught WebGPU validation error was raised: [Invalid Buffer (unlabeled)] is invalid.
+
+- While validating entries[0] as a Buffer.
+  Expected entry layout: {type: BufferBindingType::ReadOnlyStorage, minBindingSize: 16, hasDynamicOffset: 0}
+- While validating [BindGroupDescriptor ""Div""] against [BindGroupLayout (unlabeled)]
+- While calling [Device].CreateBindGroup([BindGroupDescriptor ""Div""]).
+
+device.onuncapturederror @ transformers.min.js:1
+transformers.min.js:1 An uncaught WebGPU validation error was raised: [Invalid Buffer (unlabeled)] is invalid.
+
+- While validating entries[0] as a Buffer.
+  Expected entry layout: {type: BufferBindingType::ReadOnlyStorage, minBindingSize: 16, hasDynamicOffset: 0}
+- While validating [BindGroupDescriptor ""LeakyRelu""] against [BindGroupLayout (unlabeled)]
+- While calling [Device].CreateBindGroup([BindGroupDescriptor ""LeakyRelu""]).
+
+device.onuncapturederror @ transformers.min.js:1
+transformers.min.js:1 An uncaught WebGPU validation error was raised: [Invalid Buffer (unlabeled)] is invalid.
+
+- While validating entries[0] as a Buffer.
+  Expected entry layout: {type: BufferBindingType::ReadOnlyStorage, minBindingSize: 4, hasDynamicOffset: 0}
+- While validating [BindGroupDescriptor ""Conv2DMatMul""] against [BindGroupLayout (unlabeled)]
+- While calling [Device].CreateBindGroup([BindGroupDescriptor ""Conv2DMatMul""]).
+
+device.onuncapturederror @ transformers.min.js:1
+transformers.min.js:1 An uncaught WebGPU validation error was raised: [Invalid BindGroup "Add"] is invalid.
+
+- While encoding [ComputePassEncoder (unlabeled)].SetBindGroup(0, [Invalid BindGroup "Add"], 0, ...).
+- While finishing [CommandEncoder (unlabeled)].
+
+device.onuncapturederror @ transformers.min.js:1
+transformers.min.js:1 An uncaught WebGPU validation error was raised: [Invalid CommandBuffer] is invalid.
+
+- While calling [Queue].Submit([[Invalid CommandBuffer]])
+
+device.onuncapturederror @ transformers.min.js:1
+(index):1 [Invalid Buffer (unlabeled)] is invalid.
+
+- While validating entries[3] as a Buffer.
+  Expected entry layout: {type: BufferBindingType::Storage, minBindingSize: 4, hasDynamicOffset: 0}
+- While validating [BindGroupDescriptor ""ConvTranspose2D""] against [BindGroupLayout (unlabeled)]
+- While calling [Device].CreateBindGroup([BindGroupDescriptor ""ConvTranspose2D""]).
+
+(index):1 [Invalid Buffer (unlabeled)] is invalid.
+
+- While validating entries[0] as a Buffer.
+  Expected entry layout: {type: BufferBindingType::ReadOnlyStorage, minBindingSize: 4, hasDynamicOffset: 0}
+- While validating [BindGroupDescriptor ""Pad""] against [BindGroupLayout (unlabeled)]
+- While calling [Device].CreateBindGroup([BindGroupDescriptor ""Pad""]).
+
+(index):1 [Invalid Buffer (unlabeled)] is invalid.
+
+- While validating entries[3] as a Buffer.
+  Expected entry layout: {type: BufferBindingType::Storage, minBindingSize: 4, hasDynamicOffset: 0}
+- While validating [BindGroupDescriptor ""MatMul""] against [BindGroupLayout (unlabeled)]
+- While calling [Device].CreateBindGroup([BindGroupDescriptor ""MatMul""]).
+
+(index):1 [Invalid BindGroup "ConvTranspose2D"] is invalid.
+
+- While encoding [ComputePassEncoder (unlabeled)].SetBindGroup(0, [Invalid BindGroup "ConvTranspose2D"], 0, ...).
+- While finishing [CommandEncoder (unlabeled)].
+
+(index):1 [Invalid Buffer (unlabeled)] is invalid.
+
+- While validating entries[3] as a Buffer.
+  Expected entry layout: {type: BufferBindingType::Storage, minBindingSize: 4, hasDynamicOffset: 0}
+- While validating [BindGroupDescriptor ""Conv2DMatMul""] against [BindGroupLayout (unlabeled)]
+- While calling [Device].CreateBindGroup([BindGroupDescriptor ""Conv2DMatMul""]).
+
+(index):1 WebGPU: too many warnings, no more warnings will be reported to the console for this GPUDevice.
+(index):1 [.WebGL-0x1e14031a0700] GL_OUT_OF_MEMORY: Error: 0x00000505, in ..\..\third_party\angle\src\libANGLE\renderer\d3d\d3d11\ResourceManager11.cpp, rx::ResourceManager11::allocate:496. Internal D3D11 error: HRESULT: 0x8007000E: Error allocating Texture2D
+(index):1 [.WebGL-0x1e14031a0700] GL_CONTEXT_LOST_KHR: glFramebufferTexture2D: Context has been lost.
+(index):1 [.WebGL-0x1e14031a0700] GL_CONTEXT_LOST_KHR: glDeleteFramebuffers: Context has been lost.
+(index):1 [.WebGL-0x1e14031a0700] GL_CONTEXT_LOST_KHR: glDisable: Context has been lost.
+(index):1 [.WebGL-0x1e14031a0700] GL_CONTEXT_LOST_KHR: glColorMask: Context has been lost.
+(index):1 [.WebGL-0x1e14031a0700] GL_CONTEXT_LOST_KHR: glClearColor: Context has been lost.
+(index):1 [.WebGL-0x1e14031a0700] GL_CONTEXT_LOST_KHR: glBindTexture: Context has been lost.
+(index):1 [.WebGL-0x1e14031a0700] GL_CONTEXT_LOST_KHR: glBindFramebuffer: Context has been lost.
+(index):1 [.WebGL-0x1e14031a0700] GL_CONTEXT_LOST_KHR: glBindTexture: Context has been lost.
+(index):1 [.WebGL-0x1e14031a0700] GL_CONTEXT_LOST_KHR: glFramebufferTexture2DMultisampleEXT: Context has been lost.
+tts-worker.js?worker_file&type=module:1 Uncaught (in promise) AbortError: Failed to execute 'mapAsync' on 'GPUBuffer': A valid external Instance reference no longer exists.
+(index):1 [.WebGL-0x1e14031a0700] GL_CONTEXT_LOST_KHR: glInvalidateFramebuffer: Context has been lost.
+(index):1 WebGL: CONTEXT_LOST_WEBGL: loseContext: context lost
+(index):1 WebGL: CONTEXT_LOST_WEBGL: loseContext: context lost
+
+- stop button does not always work (if processing has started but speaking has not?)
+- the motion and other buttons are broke and motions do not work even though it says soProcessing chunk: Its open hold covered with canvas and lashed tight, the sails of the schooner filled and it moved out into the open lake, carrying with it everything that had made the mill a mill and Hortons Bay a town.
+  main.js:323 Generated TTS audio blob: blob:http://localhost:5173/2a1032c2-56a2-469e-8fab-9173c4b3d2ec
+  main.js:299 Playing random motion: tap_body[1]
+  main.js:299 Playing random motion: idle[0]
+- look into pareameters to decrease noise or extra vibrations in lips movements(make it smooth) and increase the range to open and close

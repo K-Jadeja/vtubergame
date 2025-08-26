@@ -301,7 +301,6 @@ function triggerRandomMotion(groupName) {
   }
 }
 
-
 async function speakText(text) {
   if (!model) return;
 
@@ -315,14 +314,14 @@ async function speakText(text) {
       fallbackToBasicTTS(text);
       return;
     }
-    
+
     // Generate TTS audio using Kokoro.js
     console.log("Generating TTS audio with lipsync...");
-    const audioUrl = await kokoroTTS.generateSpeech(text);
-    
+    const audioUrl = await kokoroTTS.generateSpeech(text, "af_nicole");
+
     if (audioUrl) {
       console.log(`Generated TTS audio blob: ${audioUrl}`);
-      
+
       // Use the model's speak function for lip sync with the generated audio
       model.speak(audioUrl, {
         volume: 0.8,
@@ -347,7 +346,6 @@ async function speakText(text) {
       triggerRandomMotion("tap_body") ||
         triggerRandomMotion("idle") ||
         triggerRandomMotion("Idle");
-        
     } else {
       console.warn("Failed to generate TTS audio, using fallback");
       fallbackToBasicTTS(text);
@@ -369,54 +367,58 @@ class KokoroTTSManager {
 
   async initialize() {
     if (this.isInitialized) return true;
-    
+
     try {
-      console.log('Initializing Kokoro TTS worker...');
-      this.worker = new Worker(new URL('./tts-worker.js', import.meta.url), { type: 'module' });
-      
+      console.log("Initializing Kokoro TTS worker...");
+      this.worker = new Worker(new URL("./tts-worker.js", import.meta.url), {
+        type: "module",
+      });
+
       return new Promise((resolve, reject) => {
         const timeoutId = setTimeout(() => {
-          reject(new Error('Kokoro TTS initialization timeout'));
+          reject(new Error("Kokoro TTS initialization timeout"));
         }, 60000); // 60 second timeout
-        
-        this.worker.addEventListener('message', (e) => {
+
+        this.worker.addEventListener("message", (e) => {
           switch (e.data.status) {
-            case 'loading_model_ready':
+            case "loading_model_ready":
               clearTimeout(timeoutId);
-              console.log('Kokoro TTS model loaded successfully');
+              console.log("Kokoro TTS model loaded successfully");
               this.isInitialized = true;
               resolve(true);
               break;
-            case 'error':
+            case "error":
               clearTimeout(timeoutId);
-              console.error('Kokoro TTS error:', e.data.error);
+              console.error("Kokoro TTS error:", e.data.error);
               this.isInitialized = false;
               reject(new Error(e.data.error));
               break;
-            case 'loading_model_progress':
+            case "loading_model_progress":
               const progress = Math.round(e.data.progress * 100);
               console.log(`Loading Kokoro model: ${progress}%`);
               break;
           }
         });
 
-        this.worker.addEventListener('error', (error) => {
+        this.worker.addEventListener("error", (error) => {
           clearTimeout(timeoutId);
-          console.error('Kokoro TTS worker error:', error);
+          console.error("Kokoro TTS worker error:", error);
           this.isInitialized = false;
           reject(error);
         });
       });
     } catch (error) {
-      console.error('Failed to initialize Kokoro TTS:', error);
+      console.error("Failed to initialize Kokoro TTS:", error);
       this.isInitialized = false;
       return false;
     }
   }
 
-  async generateSpeech(text, voice = 'af_heart') {
+  async generateSpeech(text, voice = "af_heart") {
     if (!this.isInitialized) {
-      throw new Error('Kokoro TTS is not initialized yet. Please wait for model to load.');
+      throw new Error(
+        "Kokoro TTS is not initialized yet. Please wait for model to load."
+      );
     }
 
     return new Promise((resolve, reject) => {
@@ -424,32 +426,32 @@ class KokoroTTSManager {
 
       const messageHandler = (e) => {
         switch (e.data.status) {
-          case 'stream_audio_data':
+          case "stream_audio_data":
             // Collect Float32Array audio data from worker
             this.audioChunks.push(new Float32Array(e.data.audio));
             // Notify worker that buffer has been processed
             this.worker.postMessage({ type: "buffer_processed" });
             break;
-          case 'complete':
+          case "complete":
             // Convert all audio chunks to WAV blob compatible with Live2D
             try {
               const wavBlob = this.createWavBlob(this.audioChunks);
               const audioUrl = URL.createObjectURL(wavBlob);
-              this.worker.removeEventListener('message', messageHandler);
+              this.worker.removeEventListener("message", messageHandler);
               resolve(audioUrl);
             } catch (error) {
-              this.worker.removeEventListener('message', messageHandler);
+              this.worker.removeEventListener("message", messageHandler);
               reject(error);
             }
             break;
-          case 'error':
-            this.worker.removeEventListener('message', messageHandler);
+          case "error":
+            this.worker.removeEventListener("message", messageHandler);
             reject(new Error(e.data.error));
             break;
         }
       };
 
-      this.worker.addEventListener('message', messageHandler);
+      this.worker.addEventListener("message", messageHandler);
       this.worker.postMessage({ text, voice });
     });
   }
@@ -457,12 +459,15 @@ class KokoroTTSManager {
   // Create a properly formatted WAV blob that Live2D can handle
   createWavBlob(audioChunks) {
     if (audioChunks.length === 0) {
-      throw new Error('No audio chunks to combine');
+      throw new Error("No audio chunks to combine");
     }
 
     // Calculate total length
-    const totalLength = audioChunks.reduce((sum, chunk) => sum + chunk.length, 0);
-    
+    const totalLength = audioChunks.reduce(
+      (sum, chunk) => sum + chunk.length,
+      0
+    );
+
     // Combine all chunks into a single Float32Array
     const combinedAudio = new Float32Array(totalLength);
     let offset = 0;
@@ -475,18 +480,18 @@ class KokoroTTSManager {
     const sampleRate = 24000; // Kokoro model sample rate
     const buffer = new ArrayBuffer(44 + combinedAudio.length * 2);
     const view = new DataView(buffer);
-    
+
     // WAV header
     const writeString = (offset, string) => {
       for (let i = 0; i < string.length; i++) {
         view.setUint8(offset + i, string.charCodeAt(i));
       }
     };
-    
-    writeString(0, 'RIFF');
+
+    writeString(0, "RIFF");
     view.setUint32(4, 36 + combinedAudio.length * 2, true);
-    writeString(8, 'WAVE');
-    writeString(12, 'fmt ');
+    writeString(8, "WAVE");
+    writeString(12, "fmt ");
     view.setUint32(16, 16, true);
     view.setUint16(20, 1, true);
     view.setUint16(22, 1, true);
@@ -494,23 +499,23 @@ class KokoroTTSManager {
     view.setUint32(28, sampleRate * 2, true);
     view.setUint16(32, 2, true);
     view.setUint16(34, 16, true);
-    writeString(36, 'data');
+    writeString(36, "data");
     view.setUint32(40, combinedAudio.length * 2, true);
-    
+
     // Convert float samples to 16-bit PCM
     let offset2 = 44;
     for (let i = 0; i < combinedAudio.length; i++) {
       const sample = Math.max(-1, Math.min(1, combinedAudio[i]));
-      view.setInt16(offset2, sample * 0x7FFF, true);
+      view.setInt16(offset2, sample * 0x7fff, true);
       offset2 += 2;
     }
-    
-    return new Blob([buffer], { type: 'audio/wav' });
+
+    return new Blob([buffer], { type: "audio/wav" });
   }
-  
+
   stop() {
     if (this.worker) {
-      this.worker.postMessage({ type: 'stop' });
+      this.worker.postMessage({ type: "stop" });
     }
   }
 }
@@ -520,7 +525,7 @@ const kokoroTTS = new KokoroTTSManager();
 
 function fallbackToBasicTTS(text) {
   console.log("Using basic browser TTS fallback (no lipsync)");
-  
+
   const utterance = new SpeechSynthesisUtterance(text);
 
   // Get available voices
