@@ -22,7 +22,8 @@ if (self.location.hostname === "localhost2") {
 }
 
 const tts = await KokoroTTS.from_pretrained(model_id, {
-  dtype: device === "wasm" ? "q8" : "fp32", device,
+  dtype: device === "wasm" ? "q8" : "fp32", 
+  device,
   progress_callback: (progress) => {
     self.postMessage({ status: "loading_model_progress", progress });
   }
@@ -40,6 +41,7 @@ let shouldStop = false;
 
 self.addEventListener("message", async (e) => {
   const { type, text, voice } = e.data;
+  
   if (type === "stop") {
     bufferQueueSize = 0;
     shouldStop = true;
@@ -52,7 +54,7 @@ self.addEventListener("message", async (e) => {
     return;
   }
 
-  if (text) {
+  if (type === "generate" && text) {
     shouldStop = false;
     let chunks = splitTextSmart(text, 300); // 300 characters per chunk for good balance
     

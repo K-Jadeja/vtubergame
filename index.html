@@ -27,15 +27,33 @@
         </div>
         <div id="tts-controls">
           <h3>Text to Speech:</h3>
-          <input
-            type="text"
+          <textarea
             id="tts-text"
             placeholder="Enter text to speak"
-            value="Hello! I'm a Live2D model!"
-          />
-          <br />
-          <button id="speak-btn">Speak</button>
-          <button id="stop-btn">Stop</button>
+            rows="3"
+          >Hello! I'm a Live2D model!</textarea>
+          
+          <div id="progressContainer" style="display: none;">
+            <p id="progressLabel">Loading model...</p>
+            <div class="progress-bar">
+              <div id="progressBar" class="progress-bar-fill"></div>
+            </div>
+            <p id="progressStatus">0%</p>
+          </div>
+          
+          <div class="tts-buttons">
+            <button id="speak-btn" disabled>
+              <span class="btn-content play-content">
+                🎤 Speak with Lipsync
+              </span>
+              <span class="btn-content stop-content" style="display: none;">
+                ⏹️ Stop Speaking
+              </span>
+              <span class="btn-content loading-content" style="display: none;">
+                ⏳ Processing...
+              </span>
+            </button>
+          </div>
         </div>
         <div id="model-info">
           <h3>Model Info:</h3>

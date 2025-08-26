@@ -2,12 +2,19 @@
 import "./style.css";
 import { Application, Ticker } from "pixi.js";
 import { Live2DModel } from "pixi-live2d-display-lipsyncpatch";
+import { updateProgress } from "./updateProgress.js";
+import { Live2DAudioPlayer } from "./Live2DAudioPlayer.js";
+import { TTSButtonHandler } from "./TTSButtonHandler.js";
 
 // Register ticker for model updates
 Live2DModel.registerTicker(Ticker);
 
 let app;
 let model;
+let ttsWorker;
+let audioPlayer;
+let buttonHandler;
+
 const PRESIDENT_ASSETS_PATH = "/models/President game assets/";
 
 async function init() {
@@ -39,6 +46,7 @@ async function init() {
     loadModel("/models/shizuku/shizuku.model.json", "Shizuku");
   document.getElementById("load-haru").onclick = () =>
     loadModel("/models/haru/haru_greeter_t03.model3.json", "Haru");
+  
   try {
     const response = await fetch(`${PRESIDENT_ASSETS_PATH}models.json`);
     const sceneList = await response.json();
@@ -48,42 +56,99 @@ async function init() {
     alert("Could not load the scene list. Check the console.");
   }
 
-  // Setup TTS controls
-  document.getElementById("speak-btn").onclick = () => {
-    const text = document.getElementById("tts-text").value;
-    if (text && model) {
-      speakText(text);
-    } else if (!model) {
-      alert("Please load a model first!");
-    }
-  };
-
-  document.getElementById("stop-btn").onclick = () => {
-    if (model) {
-      model.stopSpeaking();
-      model.stopMotions();
-    }
-    // Also stop Kokoro TTS
-    kokoroTTS.stop();
-  };
-
-  // Initialize Kokoro TTS
-  try {
-    console.log("Initializing Kokoro TTS...");
-    await kokoroTTS.initialize();
-    console.log("Kokoro TTS initialized successfully");
-  } catch (error) {
-    console.warn("Kokoro TTS initialization failed, will use fallback:", error);
-  }
+  // Initialize TTS system with StreamingKokoroJS architecture
+  initializeTTSSystem();
 
   console.log("Application initialized. Load a model to begin!");
+}
+
+function initializeTTSSystem() {
+  // Initialize TTS worker
+  ttsWorker = new Worker(new URL('./tts-worker.js', import.meta.url), { type: 'module' });
+  
+  // Initialize audio player for Live2D integration
+  audioPlayer = new Live2DAudioPlayer(ttsWorker, model);
+  
+  // Initialize button handler
+  buttonHandler = new TTSButtonHandler(ttsWorker, audioPlayer);
+  
+  // Set up message handlers
+  const onMessageReceived = async (e) => {
+    switch (e.data.status) {
+      case "loading_model_start":
+        console.log("Kokoro TTS model loading started:", e.data);
+        updateProgress(0, "Loading Kokoro TTS model...");
+        break;
+
+      case "loading_model_ready":
+        buttonHandler.enableButton();
+        updateProgress(100, "Kokoro TTS model loaded successfully");
+        console.log("Kokoro TTS model ready, voices available:", Object.keys(e.data.voices || {}).length);
+        break;
+
+      case "loading_model_progress":
+        let progress = Number(e.data.progress) * 100;
+        if (isNaN(progress)) progress = 0;
+        updateProgress(progress, `Loading Kokoro model: ${Math.round(progress)}%`);
+        break;
+
+      case "stream_audio_data":
+        // Update button to stop state once we start receiving data
+        buttonHandler.updateToStopState();
+        
+        // Queue audio data in our Live2D audio player
+        await audioPlayer.queueAudio(e.data.audio);
+        break;
+
+      case "complete":
+        try {
+          updateProgress(95, "Finalizing audio for Live2D...");
+          
+          // Finalize all audio chunks into a single WAV blob
+          const audioUrl = await audioPlayer.finalizeAudio();
+          
+          updateProgress(98, "Starting Live2D lipsync...");
+          
+          // Play the finalized audio with Live2D lipsync
+          await audioPlayer.playWithLipsync();
+          
+          updateProgress(100, "Speech completed successfully!");
+          
+        } catch (error) {
+          console.error("Error during Live2D playback:", error);
+          updateProgress(100, "Error during speech playback!");
+        } finally {
+          buttonHandler.onComplete();
+        }
+        break;
+
+      case "error":
+        console.error("TTS Worker error:", e.data.error);
+        buttonHandler.onError(e.data.error);
+        break;
+    }
+  };
+
+  const onErrorReceived = (e) => {
+    console.error("TTS Worker error:", e);
+    buttonHandler.onError(e.message || "Unknown worker error");
+  };
+
+  ttsWorker.addEventListener("message", onMessageReceived);
+  ttsWorker.addEventListener("error", onErrorReceived);
+  
+  // Initialize button handlers
+  buttonHandler.init();
+  
+  // Show initial progress
+  updateProgress(0, "Initializing Kokoro TTS model...");
+  document.getElementById("progressContainer").style.display = "block";
 }
 
 /**
  * Creates the scene buttons from the fetched manifest data.
  */
 function createSceneButtons(sceneList) {
-  // NOTE: This assumes I changed my HTML to have <div id="scene-buttons"></div>
   const container = document.getElementById("scene-buttons");
   if (!container) return;
 
@@ -146,6 +211,11 @@ async function loadModel(modelPath, modelName) {
         triggerRandomMotion("flickHead");
       }
     });
+
+    // Update audio player with new model
+    if (audioPlayer) {
+      audioPlayer.setLive2DModel(model);
+    }
 
     // Setup UI controls for this model
     setupModelControls(modelName);
@@ -301,310 +371,8 @@ function triggerRandomMotion(groupName) {
   }
 }
 
-
-async function speakText(text) {
-  if (!model) return;
-
-  console.log(`Speaking text: "${text}"`);
-
-  try {
-    // Check if Kokoro TTS is ready
-    if (!kokoroTTS.isInitialized) {
-      console.log("Kokoro TTS is loading. Please wait...");
-      // Fallback to basic TTS for now
-      fallbackToBasicTTS(text);
-      return;
-    }
-    
-    // Generate TTS audio using Kokoro.js
-    console.log("Generating TTS audio with lipsync...");
-    const audioUrl = await kokoroTTS.generateSpeech(text);
-    
-    if (audioUrl) {
-      console.log(`Generated TTS audio blob: ${audioUrl}`);
-      
-      // Use the model's speak function for lip sync with the generated audio
-      model.speak(audioUrl, {
-        volume: 0.8,
-        expression: getRandomExpression(),
-        resetExpression: true,
-        crossOrigin: "anonymous",
-        onFinish: () => {
-          console.log("TTS lipsync finished");
-          // Clean up the temporary audio URL
-          URL.revokeObjectURL(audioUrl);
-        },
-        onError: (err) => {
-          console.error("TTS lipsync error:", err);
-          // Clean up on error
-          URL.revokeObjectURL(audioUrl);
-          // Fallback to basic TTS
-          fallbackToBasicTTS(text);
-        },
-      });
-
-      // Trigger a talking motion
-      triggerRandomMotion("tap_body") ||
-        triggerRandomMotion("idle") ||
-        triggerRandomMotion("Idle");
-        
-    } else {
-      console.warn("Failed to generate TTS audio, using fallback");
-      fallbackToBasicTTS(text);
-    }
-  } catch (error) {
-    console.error("TTS generation error:", error);
-    fallbackToBasicTTS(text);
-  }
-}
-
-// Kokoro TTS Integration based on StreamingKokoroJS architecture
-class KokoroTTSManager {
-  constructor() {
-    this.worker = null;
-    this.isInitialized = false;
-    this.audioChunks = [];
-    this.isProcessing = false;
-  }
-
-  async initialize() {
-    if (this.isInitialized) return true;
-    
-    try {
-      console.log('Initializing Kokoro TTS worker...');
-      this.worker = new Worker(new URL('./tts-worker.js', import.meta.url), { type: 'module' });
-      
-      return new Promise((resolve, reject) => {
-        const timeoutId = setTimeout(() => {
-          reject(new Error('Kokoro TTS initialization timeout'));
-        }, 60000); // 60 second timeout
-        
-        this.worker.addEventListener('message', (e) => {
-          switch (e.data.status) {
-            case 'loading_model_ready':
-              clearTimeout(timeoutId);
-              console.log('Kokoro TTS model loaded successfully');
-              this.isInitialized = true;
-              resolve(true);
-              break;
-            case 'error':
-              clearTimeout(timeoutId);
-              console.error('Kokoro TTS error:', e.data.error);
-              this.isInitialized = false;
-              reject(new Error(e.data.error));
-              break;
-            case 'loading_model_progress':
-              const progress = Math.round(e.data.progress * 100);
-              console.log(`Loading Kokoro model: ${progress}%`);
-              break;
-          }
-        });
-
-        this.worker.addEventListener('error', (error) => {
-          clearTimeout(timeoutId);
-          console.error('Kokoro TTS worker error:', error);
-          this.isInitialized = false;
-          reject(error);
-        });
-      });
-    } catch (error) {
-      console.error('Failed to initialize Kokoro TTS:', error);
-      this.isInitialized = false;
-      return false;
-    }
-  }
-
-  async generateSpeech(text, voice = 'af_heart') {
-    if (!this.isInitialized) {
-      throw new Error('Kokoro TTS is not initialized yet. Please wait for model to load.');
-    }
-
-    return new Promise((resolve, reject) => {
-      this.audioChunks = [];
-
-      const messageHandler = (e) => {
-        switch (e.data.status) {
-          case 'stream_audio_data':
-            // Collect Float32Array audio data from worker
-            this.audioChunks.push(new Float32Array(e.data.audio));
-            // Notify worker that buffer has been processed
-            this.worker.postMessage({ type: "buffer_processed" });
-            break;
-          case 'complete':
-            // Convert all audio chunks to WAV blob compatible with Live2D
-            try {
-              const wavBlob = this.createWavBlob(this.audioChunks);
-              const audioUrl = URL.createObjectURL(wavBlob);
-              this.worker.removeEventListener('message', messageHandler);
-              resolve(audioUrl);
-            } catch (error) {
-              this.worker.removeEventListener('message', messageHandler);
-              reject(error);
-            }
-            break;
-          case 'error':
-            this.worker.removeEventListener('message', messageHandler);
-            reject(new Error(e.data.error));
-            break;
-        }
-      };
-
-      this.worker.addEventListener('message', messageHandler);
-      this.worker.postMessage({ text, voice });
-    });
-  }
-
-  // Create a properly formatted WAV blob that Live2D can handle
-  createWavBlob(audioChunks) {
-    if (audioChunks.length === 0) {
-      throw new Error('No audio chunks to combine');
-    }
-
-    // Calculate total length
-    const totalLength = audioChunks.reduce((sum, chunk) => sum + chunk.length, 0);
-    
-    // Combine all chunks into a single Float32Array
-    const combinedAudio = new Float32Array(totalLength);
-    let offset = 0;
-    for (const chunk of audioChunks) {
-      combinedAudio.set(chunk, offset);
-      offset += chunk.length;
-    }
-
-    // Convert Float32Array to 16-bit PCM for WAV format
-    const sampleRate = 24000; // Kokoro model sample rate
-    const buffer = new ArrayBuffer(44 + combinedAudio.length * 2);
-    const view = new DataView(buffer);
-    
-    // WAV header
-    const writeString = (offset, string) => {
-      for (let i = 0; i < string.length; i++) {
-        view.setUint8(offset + i, string.charCodeAt(i));
-      }
-    };
-    
-    writeString(0, 'RIFF');
-    view.setUint32(4, 36 + combinedAudio.length * 2, true);
-    writeString(8, 'WAVE');
-    writeString(12, 'fmt ');
-    view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true);
-    view.setUint16(22, 1, true);
-    view.setUint32(24, sampleRate, true);
-    view.setUint32(28, sampleRate * 2, true);
-    view.setUint16(32, 2, true);
-    view.setUint16(34, 16, true);
-    writeString(36, 'data');
-    view.setUint32(40, combinedAudio.length * 2, true);
-    
-    // Convert float samples to 16-bit PCM
-    let offset2 = 44;
-    for (let i = 0; i < combinedAudio.length; i++) {
-      const sample = Math.max(-1, Math.min(1, combinedAudio[i]));
-      view.setInt16(offset2, sample * 0x7FFF, true);
-      offset2 += 2;
-    }
-    
-    return new Blob([buffer], { type: 'audio/wav' });
-  }
-  
-  stop() {
-    if (this.worker) {
-      this.worker.postMessage({ type: 'stop' });
-    }
-  }
-}
-
-// Create global Kokoro TTS instance
-const kokoroTTS = new KokoroTTSManager();
-
-function fallbackToBasicTTS(text) {
-  console.log("Using basic browser TTS fallback (no lipsync)");
-  
-  const utterance = new SpeechSynthesisUtterance(text);
-
-  // Get available voices
-  const voices = speechSynthesis.getVoices();
-  if (voices.length > 0) {
-    const femaleVoice = voices.find(
-      (voice) =>
-        voice.name.toLowerCase().includes("female") ||
-        voice.name.toLowerCase().includes("woman") ||
-        voice.name.toLowerCase().includes("zira") ||
-        voice.name.toLowerCase().includes("hazel")
-    );
-    if (femaleVoice) {
-      utterance.voice = femaleVoice;
-    }
-  }
-
-  utterance.rate = 0.9;
-  utterance.pitch = 1.1;
-  utterance.volume = 1.0;
-
-  utterance.onstart = () => {
-    console.log("Basic TTS started");
-    triggerRandomMotion("tap_body") ||
-      triggerRandomMotion("idle") ||
-      triggerRandomMotion("Idle");
-  };
-
-  utterance.onend = () => {
-    console.log("Basic TTS ended");
-  };
-
-  utterance.onerror = (event) => {
-    console.error("Basic TTS error:", event);
-  };
-
-  speechSynthesis.cancel();
-  speechSynthesis.speak(utterance);
-}
-
-function getSampleAudio() {
-  if (!model) return null;
-
-  // Try to find sample audio files in the model's sound directory
-  // This is based on the Shizuku model structure we copied
-  const sampleSounds = [
-    "/models/shizuku/sounds/tapBody_00.mp3",
-    "/models/shizuku/sounds/tapBody_01.mp3",
-    "/models/shizuku/sounds/pinchIn_00.mp3",
-    "/models/shizuku/sounds/flickHead_00.mp3",
-  ];
-
-  // Return a random sample sound
-  return sampleSounds[Math.floor(Math.random() * sampleSounds.length)];
-}
-
-function getRandomExpression() {
-  if (!model || !model.internalModel.expressionManager) return null;
-
-  const expressions = model.internalModel.expressionManager.definitions || [];
-  if (expressions.length === 0) return null;
-
-  return Math.floor(Math.random() * expressions.length);
-}
-
 // Initialize when DOM is loaded
 document.addEventListener("DOMContentLoaded", () => {
-  // Wait a bit for voices to load
-  setTimeout(() => {
-    if (speechSynthesis.getVoices().length === 0) {
-      speechSynthesis.addEventListener("voiceschanged", () => {
-        console.log(
-          "Available voices:",
-          speechSynthesis.getVoices().map((v) => v.name)
-        );
-      });
-    } else {
-      console.log(
-        "Available voices:",
-        speechSynthesis.getVoices().map((v) => v.name)
-      );
-    }
-  }, 100);
-
   init();
 });
 
