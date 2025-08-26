@@ -1,12 +1,26 @@
-# Live2D Test Application
+# VTuber Game - Live2D Framework
 
 ![Cubism version](https://img.shields.io/badge/Cubism-2.1/4-ff69b4?style=flat-square)
 ![PixiJS version](https://img.shields.io/badge/PixiJS-7.4.3-blue?style=flat-square)
 ![Live2D Lipsync](https://img.shields.io/badge/Lipsync-Enabled-green?style=flat-square)
+![Documentation](https://img.shields.io/badge/Documentation-Complete-brightgreen?style=flat-square)
 
-A comprehensive Live2D model testing interface with **Text-to-Speech integration and Lipsync**, built with PixiJS and the **pixi-live2d-display-lipsyncpatch** library.
+A comprehensive Live2D framework with **advanced lipsync capabilities**, built with PixiJS and the **pixi-live2d-display-lipsyncpatch** library.
 
 This project demonstrates a universal Live2D framework implementation that supports all Live2D model versions with enhanced lipsync capabilities, unified APIs, and interactive features.
+
+## 📖 Complete Documentation
+
+**[📚 View Full Documentation](https://k-jadeja.github.io/vtubergame/)**
+
+This README provides a quick overview. For comprehensive documentation including:
+- **Complete API Reference** with examples
+- **System Architecture** documentation  
+- **Developer Guides** and contribution instructions
+- **Advanced Examples** and tutorials
+- **Troubleshooting** guides and debug tools
+
+Visit our [**full documentation site**](https://k-jadeja.github.io/vtubergame/).
 
 ## ✨ Features
 
@@ -623,6 +637,31 @@ All styling is in `src/style.css` with CSS custom properties for easy theming.
 - Try reducing model scale in `main.js`
 - Check WebGL support in your browser
 - Monitor browser console for warnings
+
+## 📖 Complete Documentation
+
+For comprehensive documentation, please visit:
+
+**[📚 Full Documentation Site](https://k-jadeja.github.io/vtubergame/)**
+
+### Documentation Sections
+- **[🏁 Getting Started](https://k-jadeja.github.io/vtubergame/getting-started/)** - Setup and installation
+- **[🏗️ Architecture](https://k-jadeja.github.io/vtubergame/architecture/)** - System design and lipsync patch details
+- **[📚 API Reference](https://k-jadeja.github.io/vtubergame/api/)** - Complete method documentation  
+- **[💻 Development](https://k-jadeja.github.io/vtubergame/development/)** - Contributing and extending the framework
+- **[📝 Examples](https://k-jadeja.github.io/vtubergame/examples/)** - Advanced usage patterns and tutorials
+- **[🔧 Troubleshooting](https://k-jadeja.github.io/vtubergame/troubleshooting/)** - Common issues and debug tools
+
+### What's in the Documentation
+
+The documentation provides detailed coverage of:
+
+- **Complete API Reference**: Every method and property with examples
+- **Lipsync Patch Implementation**: Deep dive into the enhanced audio capabilities
+- **Architecture Details**: System design, data flow, and component interaction
+- **Developer Tools**: Debug utilities, performance monitoring, and development setup
+- **Advanced Examples**: Real-world implementation patterns and best practices
+- **Troubleshooting**: Step-by-step solutions for common issues
 
 ## Credits
 
