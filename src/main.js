@@ -2,14 +2,12 @@
 import "./style.css";
 import { Application, Ticker } from "pixi.js";
 import { Live2DModel } from "pixi-live2d-display-lipsyncpatch";
-import { createTTSAudioGenerator } from "./tts-audio.js";
 
 // Register ticker for model updates
 Live2DModel.registerTicker(Ticker);
 
 let app;
 let model;
-let ttsGenerator; // TTS audio generator instance
 const PRESIDENT_ASSETS_PATH = "/models/President game assets/";
 
 async function init() {
@@ -35,10 +33,6 @@ async function init() {
   }
 
   console.log("PixiJS Application created:", app);
-
-  // Initialize TTS audio generator
-  ttsGenerator = createTTSAudioGenerator();
-  console.log("TTS Audio Generator initialized");
 
   // Setup model loading buttons
   document.getElementById("load-shizuku").onclick = () =>
@@ -68,12 +62,8 @@ async function init() {
     if (model) {
       model.stopSpeaking();
       model.stopMotions();
-      updateTTSStatus('Stopped');
     }
   };
-
-  // Setup TTS settings controls
-  setupTTSControls();
 
   console.log("Application initialized. Load a model to begin!");
 }
@@ -300,104 +290,85 @@ function triggerRandomMotion(groupName) {
   }
 }
 
-function setupTTSControls() {
-  // Rate control
-  const rateSlider = document.getElementById('tts-rate');
-  const rateValue = document.getElementById('rate-value');
-  rateSlider.addEventListener('input', (e) => {
-    rateValue.textContent = e.target.value;
-  });
-
-  // Pitch control
-  const pitchSlider = document.getElementById('tts-pitch');
-  const pitchValue = document.getElementById('pitch-value');
-  pitchSlider.addEventListener('input', (e) => {
-    pitchValue.textContent = e.target.value;
-  });
-}
-
-async function speakText(text) {
-  if (!model || !ttsGenerator) return;
+function speakText(text) {
+  if (!model) return;
 
   console.log(`Speaking text: "${text}"`);
 
-  // Get settings from UI
-  const rate = parseFloat(document.getElementById('tts-rate').value);
-  const pitch = parseFloat(document.getElementById('tts-pitch').value);
-  const useSynthetic = document.getElementById('use-synthetic').checked;
+  // Check if user wants lipsync demo mode
+  const useLipsyncDemo = document.getElementById('lipsync-demo')?.checked || false;
 
-  try {
-    // Show loading indicator
-    updateTTSStatus('Generating audio from text...');
+  if (useLipsyncDemo) {
+    // Lipsync Demo Mode: Play sample audio with lipsync (no browser TTS)
+    console.log("Using Lipsync Demo mode with sample audio");
+    
+    const sampleAudio = getSampleAudio();
+    if (sampleAudio) {
+      console.log(`Playing sample audio with lipsync: ${sampleAudio}`);
 
-    // Generate audio based on settings
-    let audioResult;
-    if (useSynthetic) {
-      console.log('Using synthetic audio generation');
-      audioResult = await ttsGenerator.generateSyntheticAudio(text, {
-        rate: rate,
-        baseFrequency: 220,
-        phonemeDuration: 0.15
+      // Use the model's speak function for lip sync
+      model.speak(sampleAudio, {
+        volume: 0.8,
+        expression: getRandomExpression(),
+        resetExpression: true,
+        crossOrigin: "anonymous",
+        onFinish: () => console.log("Sample audio lipsync finished"),
+        onError: (err) => console.error("Sample audio error:", err),
       });
-      console.log('Synthetic audio generated:', audioResult);
+
+      // Also trigger a talking motion
+      triggerRandomMotion("tap_body") ||
+        triggerRandomMotion("idle") ||
+        triggerRandomMotion("Idle");
     } else {
-      try {
-        audioResult = await ttsGenerator.generateAudioFromText(text, {
-          rate: rate,
-          pitch: pitch,
-          volume: 1.0
-        });
-        console.log('TTS audio generated successfully:', audioResult);
-      } catch (ttsError) {
-        console.warn('TTS capture failed, falling back to synthetic audio:', ttsError);
-        updateTTSStatus('TTS capture failed, generating synthetic audio...');
-        
-        // Fallback to synthetic audio
-        audioResult = await ttsGenerator.generateSyntheticAudio(text, {
-          rate: rate,
-          baseFrequency: 220,
-          phonemeDuration: 0.15
-        });
-        console.log('Fallback synthetic audio generated:', audioResult);
+      console.log("No sample audio available for lipsync demo");
+    }
+  } else {
+    // Browser TTS Mode: Use browser speech synthesis (no lipsync)
+    console.log("Using Browser TTS mode");
+    
+    const utterance = new SpeechSynthesisUtterance(text);
+
+    // Get available voices
+    const voices = speechSynthesis.getVoices();
+    if (voices.length > 0) {
+      // Prefer female voices for Live2D characters
+      const femaleVoice = voices.find(
+        (voice) =>
+          voice.name.toLowerCase().includes("female") ||
+          voice.name.toLowerCase().includes("woman") ||
+          voice.name.toLowerCase().includes("zira") ||
+          voice.name.toLowerCase().includes("hazel")
+      );
+      if (femaleVoice) {
+        utterance.voice = femaleVoice;
       }
     }
 
-    updateTTSStatus('Playing audio with lipsync...');
+    utterance.rate = 0.9;
+    utterance.pitch = 1.1;
+    utterance.volume = 1.0;
 
-    // Use the generated audio for lipsync
-    model.speak(audioResult.audioUrl, {
-      volume: 0.8,
-      expression: getRandomExpression(),
-      resetExpression: true,
-      crossOrigin: "anonymous",
-      onFinish: () => {
-        console.log("Generated audio finished");
-        updateTTSStatus('Ready');
-        // Clean up the blob URL
-        URL.revokeObjectURL(audioResult.audioUrl);
-      },
-      onError: (err) => {
-        console.error("Generated audio error:", err);
-        updateTTSStatus('Error playing audio');
-        URL.revokeObjectURL(audioResult.audioUrl);
-      }
-    });
+    // Trigger a talking motion while speaking
+    utterance.onstart = () => {
+      console.log("TTS started, triggering talking motion");
+      // Try to find talking motions, fallback to idle
+      triggerRandomMotion("tap_body") ||
+        triggerRandomMotion("idle") ||
+        triggerRandomMotion("Idle");
+    };
 
-    // Also trigger a talking motion
-    triggerRandomMotion("tap_body") ||
-      triggerRandomMotion("idle") ||
-      triggerRandomMotion("Idle");
+    utterance.onend = () => {
+      console.log("TTS ended");
+    };
 
-  } catch (error) {
-    console.error('Error generating TTS audio:', error);
-    updateTTSStatus('Error: ' + error.message);
-  }
-}
+    utterance.onerror = (event) => {
+      console.error("TTS error:", event);
+    };
 
-function updateTTSStatus(status) {
-  const statusElement = document.getElementById('tts-status');
-  if (statusElement) {
-    statusElement.textContent = status;
+    // Start speaking
+    speechSynthesis.cancel(); // Cancel any ongoing speech
+    speechSynthesis.speak(utterance);
   }
 }
 
