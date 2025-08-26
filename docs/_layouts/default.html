@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="{{ site.lang | default: "en-US" }}">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    {% seo %}
+    <link rel="stylesheet" href="{{ "/assets/css/style.css?v=" | append: site.github.build_revision | relative_url }}">
+    <style>
+      .site-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1rem 0;
+        margin-bottom: 2rem;
+      }
+      
+      .header-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 1rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      
+      .site-title {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: white;
+        text-decoration: none;
+      }
+      
+      .site-nav {
+        display: flex;
+        gap: 1rem;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      
+      .site-nav a {
+        color: white;
+        text-decoration: none;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        transition: background-color 0.3s;
+      }
+      
+      .site-nav a:hover {
+        background-color: rgba(255, 255, 255, 0.2);
+      }
+      
+      .main-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 1rem;
+      }
+      
+      .breadcrumb {
+        margin-bottom: 1rem;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #eee;
+      }
+      
+      .breadcrumb a {
+        color: #666;
+        text-decoration: none;
+      }
+      
+      .breadcrumb a:hover {
+        color: #333;
+        text-decoration: underline;
+      }
+      
+      .page-header {
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #667eea;
+      }
+      
+      .page-header h1 {
+        color: #333;
+        margin-bottom: 0.5rem;
+      }
+      
+      .page-description {
+        color: #666;
+        font-size: 1.1rem;
+        margin: 0;
+      }
+      
+      .content-section {
+        margin-bottom: 3rem;
+      }
+      
+      .footer {
+        margin-top: 3rem;
+        padding: 2rem 0;
+        border-top: 1px solid #eee;
+        text-align: center;
+        color: #666;
+      }
+      
+      .footer a {
+        color: #667eea;
+        text-decoration: none;
+      }
+      
+      .footer a:hover {
+        text-decoration: underline;
+      }
+      
+      /* Code highlighting improvements */
+      .highlight {
+        background-color: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 6px;
+        padding: 1rem;
+        margin: 1rem 0;
+        overflow-x: auto;
+      }
+      
+      /* Navigation improvements for mobile */
+      @media (max-width: 768px) {
+        .header-container {
+          flex-direction: column;
+          gap: 1rem;
+        }
+        
+        .site-nav {
+          flex-wrap: wrap;
+          justify-content: center;
+        }
+        
+        .site-nav a {
+          padding: 0.25rem 0.5rem;
+          font-size: 0.9rem;
+        }
+      }
+      
+      /* Table of contents styling */
+      .toc {
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 6px;
+        padding: 1rem;
+        margin: 1rem 0;
+      }
+      
+      .toc h3 {
+        margin-top: 0;
+        color: #333;
+      }
+      
+      .toc ul {
+        margin-bottom: 0;
+      }
+      
+      .toc a {
+        color: #667eea;
+        text-decoration: none;
+      }
+      
+      .toc a:hover {
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="header-container">
+        <a href="{{ "/" | relative_url }}" class="site-title">
+          {{ site.title | default: "VTuber Game Documentation" }}
+        </a>
+        <nav>
+          <ul class="site-nav">
+            <li><a href="{{ "/" | relative_url }}">Home</a></li>
+            <li><a href="{{ "/getting-started/" | relative_url }}">Get Started</a></li>
+            <li><a href="{{ "/architecture/" | relative_url }}">Architecture</a></li>
+            <li><a href="{{ "/api/" | relative_url }}">API</a></li>
+            <li><a href="{{ "/development/" | relative_url }}">Development</a></li>
+            <li><a href="{{ "/examples/" | relative_url }}">Examples</a></li>
+            <li><a href="{{ "/troubleshooting/" | relative_url }}">Troubleshooting</a></li>
+            <li><a href="https://github.com/K-Jadeja/vtubergame" target="_blank">GitHub</a></li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+
+    <main class="main-container">
+      {% if page.url != "/" %}
+      <nav class="breadcrumb">
+        <a href="{{ "/" | relative_url }}">Home</a>
+        {% if page.url != "/" %}
+          {% assign parts = page.url | split: "/" %}
+          {% for part in parts %}
+            {% if part != "" %}
+              > <a href="#">{{ part | replace: "-", " " | capitalize }}</a>
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+      </nav>
+      {% endif %}
+
+      {% if page.title and page.url != "/" %}
+      <header class="page-header">
+        <h1>{{ page.title }}</h1>
+        {% if page.description %}
+        <p class="page-description">{{ page.description }}</p>
+        {% endif %}
+      </header>
+      {% endif %}
+
+      <div class="content-section">
+        {{ content }}
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="main-container">
+        <p>
+          <strong>VTuber Game Framework</strong> - 
+          <a href="https://github.com/K-Jadeja/vtubergame">View on GitHub</a> |
+          <a href="{{ "/getting-started/" | relative_url }}">Get Started</a> |
+          <a href="{{ "/api/" | relative_url }}">API Docs</a>
+        </p>
+        <p>
+          Built with ❤️ using Live2D, PixiJS, and enhanced lipsync capabilities
+        </p>
+      </div>
+    </footer>
+
+    {% if site.google_analytics %}
+      <script>
+        (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+        (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+        m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+        })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+        ga('create', '{{ site.google_analytics }}', 'auto');
+        ga('send', 'pageview');
+      </script>
+    {% endif %}
+  </body>
+</html>
