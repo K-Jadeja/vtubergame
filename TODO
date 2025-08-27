@@ -1,6 +1,6 @@
 - Add headings so we know which scene we are at
-- learn the codebase thoroughly
-- add browser tts for now
+  <!-- - learn the codebase thoroughly -->
+  <!-- - add browser tts for now -->
 - there should be no browser tts fallback. currently fallback does browser and random mp3 wihch is jarring/ just put a propper model loading thing/bar
 - just download the model from the start so browser does not have to download it. look up if that is possible and still works on client side
 - need to implement random movement or expressions while lipsync to make realistic
@@ -96,7 +96,8 @@ tts-worker.js?worker_file&type=module:1 Uncaught (in promise) AbortError: Failed
 (index):1 WebGL: CONTEXT_LOST_WEBGL: loseContext: context lost
 
 - stop button does not always work (if processing has started but speaking has not?)
-- the motion and other buttons are broke and motions do not work even though it says soProcessing chunk: Its open hold covered with canvas and lashed tight, the sails of the schooner filled and it moved out into the open lake, carrying with it everything that had made the mill a mill and Hortons Bay a town.
+- the motion and other buttons are broke and motions do not work even though it says so in console
+  soProcessing chunk: Its open hold covered with canvas and lashed tight, the sails of the schooner filled and it moved out into the open lake, carrying with it everything that had made the mill a mill and Hortons Bay a town.
   main.js:323 Generated TTS audio blob: blob:http://localhost:5173/2a1032c2-56a2-469e-8fab-9173c4b3d2ec
   main.js:299 Playing random motion: tap_body[1]
   main.js:299 Playing random motion: idle[0]
