@@ -390,6 +390,49 @@ app.ticker.add(() => {
 });
 ```
 
+## 🎯 Kokoro TTS Integration
+
+### Voice Configuration
+
+The system uses Kokoro neural TTS with selectable voice options. You can change the default voice by modifying the voice parameter in the TTS generation.
+
+**Available Voices:**
+- `af_nicole` (default) - Female, clear pronunciation
+- `af_sarah` - Female, warm tone  
+- `af_sky` - Female, energetic
+- And other voices provided by the Kokoro model
+
+**Changing Voice:**
+```javascript
+// In TTSButtonHandler.js, modify the voice parameter:
+this.worker.postMessage({
+  type: "generate",
+  text: text,
+  voice: "af_sarah", // Change from default "af_nicole"
+});
+```
+
+**Voice Selection Options:**
+```javascript
+// Available voices are loaded when the model initializes
+// Check console for: "Kokoro TTS model ready, voices available: X"
+
+// To see all available voices programmatically:
+// They are available in the worker's voices object after model loads
+```
+
+### TTS Configuration
+
+**Text Processing:**
+- Automatic text chunking for optimal generation
+- Smart sentence splitting at 300 characters  
+- Progressive audio streaming for responsiveness
+
+**Audio Output:**
+- High-quality 24kHz neural synthesis
+- WAV format conversion for Live2D compatibility
+- Real-time lipsync synchronization
+
 ## 🎯 Browser Speech Synthesis Integration
 
 ### `speakText(text)`

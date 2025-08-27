@@ -220,6 +220,12 @@ async function loadModel(modelPath, modelName) {
     // Setup UI controls for this model
     setupModelControls(modelName);
 
+    // Update scene title
+    const sceneTitle = document.getElementById("scene-title");
+    const sceneSubtitle = document.getElementById("scene-subtitle");
+    sceneTitle.textContent = `Current Model: ${modelName}`;
+    sceneSubtitle.textContent = `Loaded from: ${modelPath.split('/').pop()}`;
+
     console.log(`${modelName} model loaded successfully!`);
     console.log("Stage children count:", app.stage.children.length);
     console.log("Model visible:", model.visible);

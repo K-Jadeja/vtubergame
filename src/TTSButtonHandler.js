@@ -109,13 +109,13 @@ export class TTSButtonHandler {
       this.audioPlayer.setTotalChunks(Math.ceil(text.length / 300));
       this.audioPlayer.reset();
 
-      // Set a timeout for the entire process (10 seconds)
+      // Set a timeout for the entire process (30 seconds) - only for complete failure
       this.currentTimeoutId = setTimeout(() => {
-        if (this.isProcessing) {
-          console.log("TTS timeout reached, falling back to browser TTS");
-          this.fallbackToBrowserTTS(text);
+        if (this.isProcessing && this.mode === "live2d") {
+          console.log("TTS timeout reached - Kokoro model failed to respond");
+          this.onError("Kokoro TTS failed to generate audio. Model may not be loaded properly.");
         }
-      }, 10000);
+      }, 30000); // Increased timeout to 30 seconds
 
       // Send text to worker for processing
       this.worker.postMessage({
@@ -131,68 +131,8 @@ export class TTSButtonHandler {
     }
   }
 
-  async fallbackToBrowserTTS(text) {
-    try {
-      console.log("Using browser TTS fallback with animation");
-      updateProgress(80, "Using browser TTS fallback...");
-
-      // Clear any existing timeouts
-      if (this.currentTimeoutId) {
-        clearTimeout(this.currentTimeoutId);
-        this.currentTimeoutId = null;
-      }
-
-      const utterance = new SpeechSynthesisUtterance(text);
-
-      // Get available voices
-      const voices = speechSynthesis.getVoices();
-      if (voices.length > 0) {
-        const femaleVoice = voices.find(
-          (voice) =>
-            voice.name.toLowerCase().includes("female") ||
-            voice.name.toLowerCase().includes("woman") ||
-            voice.name.toLowerCase().includes("zira") ||
-            voice.name.toLowerCase().includes("hazel")
-        );
-        if (femaleVoice) {
-          utterance.voice = femaleVoice;
-        }
-      }
-
-      utterance.rate = 0.9;
-      utterance.pitch = 1.1;
-      utterance.volume = 1.0;
-
-      utterance.onstart = () => {
-        console.log("Browser TTS started");
-        updateProgress(90, "Speaking with browser TTS...");
-
-        // Trigger talking motions
-        this.audioPlayer.triggerRandomMotion("tap_body") ||
-          this.audioPlayer.triggerRandomMotion("idle") ||
-          this.audioPlayer.triggerRandomMotion("Idle");
-      };
-
-      utterance.onend = () => {
-        console.log("Browser TTS ended");
-        updateProgress(100, "Speech completed successfully!");
-        this.onComplete();
-      };
-
-      utterance.onerror = (event) => {
-        console.error("Browser TTS error:", event);
-        updateProgress(100, "Speech failed!");
-        this.onComplete();
-      };
-
-      speechSynthesis.cancel();
-      speechSynthesis.speak(utterance);
-    } catch (error) {
-      console.error("Fallback TTS error:", error);
-      updateProgress(100, "Speech failed!");
-      this.onComplete();
-    }
-  }
+  // This method is removed - no more browser TTS fallback
+  // Kokoro TTS should be the only audio generation method
 
   getMode() {
     return this.mode;
@@ -230,7 +170,7 @@ export class TTSButtonHandler {
     this.enableButton();
   }
 
-  // Called when there's an error
+  // Called when there's an error  
   onError(error) {
     console.error("TTS error:", error);
 
@@ -242,7 +182,7 @@ export class TTSButtonHandler {
 
     this.isProcessing = false;
     this.mode = "none";
-    updateProgress(100, "Speech generation failed!");
+    updateProgress(100, `Speech generation failed: ${error}`);
     this.enableButton();
   }
 }
