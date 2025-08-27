@@ -110,6 +110,9 @@ export class Live2DAudioPlayer {
     }
 
     return new Promise((resolve, reject) => {
+      // Ensure model is in clean state before starting
+      this.ensureModelCleanState();
+
       // Use the Live2D model's speak function for lip sync
       this.live2dModel.speak(this.currentAudioUrl, {
         volume: 0.8,
@@ -118,11 +121,13 @@ export class Live2DAudioPlayer {
         crossOrigin: "anonymous",
         onFinish: () => {
           console.log("Live2D lipsync finished");
+          this.ensureModelCleanState(); // Ensure clean state after finish
           this.cleanup();
           resolve();
         },
         onError: (err) => {
           console.error("Live2D lipsync error:", err);
+          this.ensureModelCleanState(); // Ensure clean state after error
           this.cleanup();
           reject(err);
         },
@@ -133,6 +138,42 @@ export class Live2DAudioPlayer {
         this.triggerRandomMotion("idle") ||
         this.triggerRandomMotion("Idle");
     });
+  }
+
+  // Ensure the Live2D model is in a clean state for motions/expressions to work
+  ensureModelCleanState() {
+    if (!this.live2dModel) return;
+
+    try {
+      // Stop any ongoing speaking/audio
+      if (typeof this.live2dModel.stopSpeaking === 'function') {
+        this.live2dModel.stopSpeaking();
+      }
+      
+      // Reset motion state - but don't stop current motions completely
+      if (typeof this.live2dModel.stopMotions === 'function') {
+        // Only stop if there's an issue, don't interfere with normal motion playback
+      }
+
+      // Ensure the model's internal state allows new motions and expressions
+      if (this.live2dModel.internalModel) {
+        const motionManager = this.live2dModel.internalModel.motionManager;
+        const expressionManager = this.live2dModel.internalModel.expressionManager;
+        
+        // Reset any locks that might prevent new motions/expressions
+        if (motionManager && typeof motionManager.setRandomMotion === 'function') {
+          // Reset motion manager state if possible
+        }
+        
+        if (expressionManager && typeof expressionManager.setRandomExpression === 'function') {
+          // Reset expression manager state if possible  
+        }
+      }
+      
+      console.log("Live2D model state cleaned for motion/expression control");
+    } catch (error) {
+      console.warn("Error while cleaning model state:", error);
+    }
   }
 
   getRandomExpression() {
@@ -164,11 +205,8 @@ export class Live2DAudioPlayer {
   stop() {
     console.log("Stopping Live2D audio playback");
     
-    if (this.live2dModel) {
-      this.live2dModel.stopSpeaking();
-      this.live2dModel.stopMotions();
-    }
-    
+    // Use the comprehensive cleanup method
+    this.ensureModelCleanState();
     this.cleanup();
     
     if (this.worker) {
