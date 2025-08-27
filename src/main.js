@@ -89,8 +89,7 @@ function initializeTTSSystem() {
       case "loading_model_progress":
         let progress = Number(e.data.progress) * 100;
         if (isNaN(progress)) progress = 0;
-        // Pass model size information for enhanced progress display
-        updateProgress(progress, `Loading Kokoro model: ${Math.round(progress)}%`, { totalSize: 325 });
+        updateProgress(progress, `Loading Kokoro model: ${Math.round(progress)}%`);
         break;
 
       case "stream_audio_data":
@@ -308,10 +307,6 @@ function setupMotionControls(motionManager) {
         const button = document.createElement("button");
         button.textContent = `${groupName} ${index}`;
         button.onclick = () => {
-          // Ensure model is in clean state for motion control
-          if (audioPlayer) {
-            audioPlayer.ensureModelCleanState();
-          }
           console.log(`Playing motion: ${groupName}[${index}]`);
           model.motion(groupName, index, 2); // Priority 2 = normal
         };
@@ -350,10 +345,6 @@ function setupExpressionControls(expressionManager) {
       expression.name || expression.Name || `Expression ${index}`;
     button.textContent = expressionName;
     button.onclick = () => {
-      // Ensure model is in clean state for expression control
-      if (audioPlayer) {
-        audioPlayer.ensureModelCleanState();
-      }
       console.log(`Setting expression: ${expressionName} (${index})`);
       model.expression(index);
     };
@@ -365,10 +356,6 @@ function setupExpressionControls(expressionManager) {
   const resetBtn = document.createElement("button");
   resetBtn.textContent = "Reset Expression";
   resetBtn.onclick = () => {
-    // Ensure model is in clean state for expression control
-    if (audioPlayer) {
-      audioPlayer.ensureModelCleanState();
-    }
     console.log("Resetting expression");
     model.expression();
   };
@@ -378,11 +365,6 @@ function setupExpressionControls(expressionManager) {
 
 function triggerRandomMotion(groupName) {
   if (!model) return;
-
-  // Ensure model is in clean state for motion control
-  if (audioPlayer) {
-    audioPlayer.ensureModelCleanState();
-  }
 
   const motionManager = model.internalModel.motionManager;
   const motionGroups = motionManager.definitions || {};
