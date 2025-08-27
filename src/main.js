@@ -46,7 +46,8 @@ async function init() {
     loadModel("/models/shizuku/shizuku.model.json", "Shizuku");
   document.getElementById("load-haru").onclick = () =>
     loadModel("/models/haru/haru_greeter_t03.model3.json", "Haru");
-  
+  document.getElementById("load-cyan").onclick = () =>
+    loadModel("/models/CyanSDLowRes/CyanSD.model3.json", "Cyan");
   try {
     const response = await fetch(`${PRESIDENT_ASSETS_PATH}models.json`);
     const sceneList = await response.json();
@@ -64,14 +65,16 @@ async function init() {
 
 function initializeTTSSystem() {
   // Initialize TTS worker
-  ttsWorker = new Worker(new URL('./tts-worker.js', import.meta.url), { type: 'module' });
-  
+  ttsWorker = new Worker(new URL("./tts-worker.js", import.meta.url), {
+    type: "module",
+  });
+
   // Initialize audio player for Live2D integration
   audioPlayer = new Live2DAudioPlayer(ttsWorker, model);
-  
+
   // Initialize button handler
   buttonHandler = new TTSButtonHandler(ttsWorker, audioPlayer);
-  
+
   // Set up message handlers
   const onMessageReceived = async (e) => {
     switch (e.data.status) {
@@ -83,19 +86,25 @@ function initializeTTSSystem() {
       case "loading_model_ready":
         buttonHandler.enableButton();
         updateProgress(100, "Kokoro TTS model loaded successfully");
-        console.log("Kokoro TTS model ready, voices available:", Object.keys(e.data.voices || {}).length);
+        console.log(
+          "Kokoro TTS model ready, voices available:",
+          Object.keys(e.data.voices || {}).length
+        );
         break;
 
       case "loading_model_progress":
         let progress = Number(e.data.progress) * 100;
         if (isNaN(progress)) progress = 0;
-        updateProgress(progress, `Loading Kokoro model: ${Math.round(progress)}%`);
+        updateProgress(
+          progress,
+          `Loading Kokoro model: ${Math.round(progress)}%`
+        );
         break;
 
       case "stream_audio_data":
         // Update button to stop state once we start receiving data
         buttonHandler.updateToStopState();
-        
+
         // Queue audio data in our Live2D audio player
         await audioPlayer.queueAudio(e.data.audio);
         break;
@@ -103,17 +112,16 @@ function initializeTTSSystem() {
       case "complete":
         try {
           updateProgress(95, "Finalizing audio for Live2D...");
-          
+
           // Finalize all audio chunks into a single WAV blob
           const audioUrl = await audioPlayer.finalizeAudio();
-          
+
           updateProgress(98, "Starting Live2D lipsync...");
-          
+
           // Play the finalized audio with Live2D lipsync
           await audioPlayer.playWithLipsync();
-          
+
           updateProgress(100, "Speech completed successfully!");
-          
         } catch (error) {
           console.error("Error during Live2D playback:", error);
           updateProgress(100, "Error during speech playback!");
@@ -136,10 +144,10 @@ function initializeTTSSystem() {
 
   ttsWorker.addEventListener("message", onMessageReceived);
   ttsWorker.addEventListener("error", onErrorReceived);
-  
+
   // Initialize button handlers
   buttonHandler.init();
-  
+
   // Show initial progress
   updateProgress(0, "Initializing Kokoro TTS model...");
   document.getElementById("progressContainer").style.display = "block";
@@ -185,7 +193,7 @@ async function loadModel(modelPath, modelName) {
     });
 
     // Position and scale model
-    model.scale.set(0.3);
+    model.scale.set(0.1);
 
     // Center the model horizontally and position vertically
     model.x = app.screen.width / 2;
@@ -224,7 +232,7 @@ async function loadModel(modelPath, modelName) {
     const sceneTitle = document.getElementById("scene-title");
     const sceneSubtitle = document.getElementById("scene-subtitle");
     sceneTitle.textContent = `Current Model: ${modelName}`;
-    sceneSubtitle.textContent = `Loaded from: ${modelPath.split('/').pop()}`;
+    sceneSubtitle.textContent = `Loaded from: ${modelPath.split("/").pop()}`;
 
     console.log(`${modelName} model loaded successfully!`);
     console.log("Stage children count:", app.stage.children.length);
@@ -253,6 +261,11 @@ function setupModelControls(modelName) {
   const motionManager = internalModel.motionManager;
   const expressionManager = internalModel.expressionManager;
 
+  console.log("Internal model:", internalModel);
+  console.log("Motion manager:", motionManager);
+  console.log("Expression manager:", expressionManager);
+  console.log("Model settings:", internalModel.settings);
+
   // Display model info
   displayModelInfo(modelName, motionManager, expressionManager);
 
@@ -279,9 +292,27 @@ function displayModelInfo(modelName, motionManager, expressionManager) {
     }
   }
 
-  // Expression info
-  const expressions = expressionManager?.definitions || [];
-  info += `<strong>Expressions:</strong> ${expressions.length}<br>`;
+  // Expression info - handle different Cubism versions
+  let expressionCount = 0;
+  let sourceMethod = "none";
+  
+  // Method 1: Cubism 4 - expressionManager.definitions (array)
+  if (expressionManager?.definitions && Array.isArray(expressionManager.definitions)) {
+    expressionCount = expressionManager.definitions.length;
+    sourceMethod = "expressionManager.definitions (Cubism 4)";
+  }
+  // Method 2: Cubism 2.1 - check model settings
+  else if (model?.internalModel?.settings?.expressions && Array.isArray(model.internalModel.settings.expressions)) {
+    expressionCount = model.internalModel.settings.expressions.length;
+    sourceMethod = "settings.expressions (Cubism 2.1)";
+  }
+  // Method 3: Alternative - check if definitions is an object
+  else if (expressionManager?.definitions && typeof expressionManager.definitions === 'object') {
+    expressionCount = Object.keys(expressionManager.definitions).length;
+    sourceMethod = "expressionManager.definitions (object)";
+  }
+
+  info += `<strong>Expressions:</strong> ${expressionCount} (via ${sourceMethod})<br>`;
 
   infoDiv.innerHTML = info;
 }
@@ -331,22 +362,58 @@ function setupExpressionControls(expressionManager) {
   const expressionsDiv = document.getElementById("expressions");
   expressionsDiv.innerHTML = "<h3>Expressions:</h3>";
 
-  const expressions = expressionManager?.definitions || [];
+  // Try different ways to get expressions for different Cubism versions
+  let expressions = [];
+  let sourceMethod = "";
+  
+  // Method 1: Cubism 4 - expressionManager.definitions (array)
+  if (expressionManager?.definitions && Array.isArray(expressionManager.definitions)) {
+    expressions = expressionManager.definitions;
+    sourceMethod = "expressionManager.definitions (Cubism 4)";
+  }
+  // Method 2: Cubism 2.1 - check model settings
+  else if (model?.internalModel?.settings?.expressions && Array.isArray(model.internalModel.settings.expressions)) {
+    expressions = model.internalModel.settings.expressions;
+    sourceMethod = "settings.expressions (Cubism 2.1)";
+  }
+  // Method 3: Alternative - check if definitions is an object (fallback)
+  else if (expressionManager?.definitions && typeof expressionManager.definitions === 'object') {
+    expressions = Object.values(expressionManager.definitions);
+    sourceMethod = "expressionManager.definitions (object)";
+  }
+
+  console.log(`Found ${expressions.length} expressions via ${sourceMethod}`);
+  console.log("Expressions array:", expressions);
 
   if (expressions.length === 0) {
     expressionsDiv.innerHTML += "<p>No expressions available</p>";
+    console.log("DEBUG: Expression manager:", expressionManager);
+    console.log("DEBUG: Model settings:", model?.internalModel?.settings);
+    console.log("DEBUG: Settings expressions:", model?.internalModel?.settings?.expressions);
     return;
   }
+
+  console.log(`Setting up ${expressions.length} expression buttons...`);
 
   // Add expression buttons
   expressions.forEach((expression, index) => {
     const button = document.createElement("button");
+    // Handle different naming conventions between Cubism versions
     const expressionName =
-      expression.name || expression.Name || `Expression ${index}`;
+      expression.name ||           // Cubism 2.1
+      expression.Name ||           // Cubism 4
+      expression.file ||           // Alternative
+      `Expression ${index}`;       // Fallback
+    
     button.textContent = expressionName;
     button.onclick = () => {
-      console.log(`Setting expression: ${expressionName} (${index})`);
-      model.expression(index);
+      console.log(`Setting expression: ${expressionName} (index: ${index})`);
+      try {
+        model.expression(index);
+        console.log(`Expression ${index} applied successfully`);
+      } catch (error) {
+        console.error(`Failed to apply expression ${index}:`, error);
+      }
     };
     button.className = "expression-btn";
     expressionsDiv.appendChild(button);
@@ -357,7 +424,12 @@ function setupExpressionControls(expressionManager) {
   resetBtn.textContent = "Reset Expression";
   resetBtn.onclick = () => {
     console.log("Resetting expression");
-    model.expression();
+    try {
+      model.expression();
+      console.log("Expression reset successfully");
+    } catch (error) {
+      console.error("Failed to reset expression:", error);
+    }
   };
   resetBtn.className = "expression-btn reset-btn";
   expressionsDiv.appendChild(resetBtn);
