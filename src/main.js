@@ -89,7 +89,8 @@ function initializeTTSSystem() {
       case "loading_model_progress":
         let progress = Number(e.data.progress) * 100;
         if (isNaN(progress)) progress = 0;
-        updateProgress(progress, `Loading Kokoro model: ${Math.round(progress)}%`);
+        // Pass model size information for enhanced progress display
+        updateProgress(progress, `Loading Kokoro model: ${Math.round(progress)}%`, { totalSize: 325 });
         break;
 
       case "stream_audio_data":
