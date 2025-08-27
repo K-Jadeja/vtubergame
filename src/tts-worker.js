@@ -11,7 +11,7 @@ async function detectWebGPU() {
   }
 }
 
-const device = await detectWebGPU() ? "webgpu" : "wasm";
+const device = (await detectWebGPU()) ? "webgpu" : "wasm";
 self.postMessage({ status: "loading_model_start", device });
 
 let model_id = "onnx-community/Kokoro-82M-v1.0-ONNX";
@@ -22,11 +22,11 @@ if (self.location.hostname === "localhost2") {
 }
 
 const tts = await KokoroTTS.from_pretrained(model_id, {
-  dtype: device === "wasm" ? "q8" : "fp32", 
+  dtype: device === "wasm" ? "q8" : "fp32",
   device,
   progress_callback: (progress) => {
     self.postMessage({ status: "loading_model_progress", progress });
-  }
+  },
 }).catch((e) => {
   self.postMessage({ status: "error", error: e.message });
   throw e;
@@ -41,7 +41,7 @@ let shouldStop = false;
 
 self.addEventListener("message", async (e) => {
   const { type, text, voice } = e.data;
-  
+
   if (type === "stop") {
     bufferQueueSize = 0;
     shouldStop = true;
@@ -57,7 +57,7 @@ self.addEventListener("message", async (e) => {
   if (type === "generate" && text) {
     shouldStop = false;
     let chunks = splitTextSmart(text, 300); // 300 characters per chunk for good balance
-    
+
     self.postMessage({ status: "chunk_count", count: chunks.length });
 
     for (const chunk of chunks) {
@@ -70,7 +70,7 @@ self.addEventListener("message", async (e) => {
 
       while (bufferQueueSize >= MAX_QUEUE_SIZE && !shouldStop) {
         console.log("Waiting for buffer space...");
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
         if (shouldStop) break;
       }
 
@@ -81,11 +81,14 @@ self.addEventListener("message", async (e) => {
         break;
       }
 
-      const audio = await tts.generate(chunk, { voice: voice || 'af_heart' }); // This is transformers RawAudio
+      const audio = await tts.generate(chunk, { voice: voice || "af_nicole" }); // This is transformers RawAudio
       let ab = audio.audio.buffer;
 
       bufferQueueSize++;
-      self.postMessage({ status: "stream_audio_data", audio: ab, text: chunk }, [ab]);
+      self.postMessage(
+        { status: "stream_audio_data", audio: ab, text: chunk },
+        [ab]
+      );
     }
 
     // Only send complete if we weren't stopped
