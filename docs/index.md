@@ -45,6 +45,7 @@ This project is a **universal Live2D framework** that demonstrates advanced inte
 ## 🌟 Key Features
 
 ### Core Live2D Capabilities
+
 - **Multi-Version Support**: Seamless handling of all Cubism versions
 - **Universal API**: Simplified, unified interface for all model types
 - **Interactive Events**: Touch, drag, and gesture support
@@ -52,12 +53,14 @@ This project is a **universal Live2D framework** that demonstrates advanced inte
 - **Motion Control**: Comprehensive animation system
 
 ### Enhanced Audio Features
+
 - **Lipsync Technology**: Real-time mouth movement synchronization
 - **TTS Integration**: Browser text-to-speech with motion triggers
 - **Audio Processing**: Advanced audio analysis for natural lip movement
 - **CORS Support**: Cross-origin audio file handling
 
 ### Developer Experience
+
 - **TypeScript Support**: Full type definitions for better development
 - **Modern Build Tools**: Vite-powered development and building
 - **Comprehensive Testing**: Model testing interface
@@ -75,11 +78,12 @@ model.speak(audioPath, {
   resetExpression: true,
   crossOrigin: "anonymous",
   onFinish: () => console.log("Speech completed"),
-  onError: (err) => console.error("Audio error:", err)
+  onError: (err) => console.error("Audio error:", err),
 });
 ```
 
 The patch enables:
+
 - Real-time audio analysis
 - Automatic mouth parameter adjustment
 - Expression preservation during speech
@@ -95,10 +99,25 @@ This documentation is organized into several key sections:
 4. **[Development](/development/)** - Advanced development topics
 5. **[Examples](/examples/)** - Practical implementation examples
 6. **[Troubleshooting](/troubleshooting/)** - Common issues and solutions
+7. **[Expression Fix](/expression-fix/)** - 🆕 Cubism version compatibility fixes
+
+## 🔧 Recent Updates
+
+### Expression System Fix (Latest)
+
+Fixed cross-version compatibility for Live2D expressions:
+
+- ✅ **Cubism 2.1 Support**: Shizuku model expressions now working
+- ✅ **Cubism 4.0 Support**: Haru and Cyan model expressions maintained
+- ✅ **Automatic Detection**: System auto-detects and handles both versions
+- ✅ **Comprehensive Testing**: Full test suite for validation
+
+[Learn more about the expression fix →](/expression-fix/)
 
 ## 🤝 Contributing
 
 This project welcomes contributions! Whether you're:
+
 - Adding new features
 - Improving documentation
 - Reporting bugs

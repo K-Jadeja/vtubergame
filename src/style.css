@@ -48,12 +48,35 @@ body {
 }
 
 #controls h2 {
-  margin-top: 0;
-  color: #2c3e50;
+  margin: 0 0 20px 0;
+  color: #333;
+  font-size: 1.5rem;
+  font-weight: 600;
   text-align: center;
-  font-size: 1.5em;
-  border-bottom: 2px solid #3498db;
+  border-bottom: 2px solid #667eea;
   padding-bottom: 10px;
+}
+
+/* Scene title styling */
+#current-scene {
+  margin-bottom: 25px;
+  padding: 15px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  color: white;
+  text-align: center;
+}
+
+#scene-title {
+  margin: 0 0 5px 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+#scene-subtitle {
+  margin: 0;
+  font-size: 0.9rem;
+  opacity: 0.9;
 }
 
 #controls h3 {
@@ -173,6 +196,9 @@ body {
   margin-bottom: 12px;
   box-sizing: border-box;
   transition: border-color 0.3s ease;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 80px;
 }
 
 #tts-text:focus {
@@ -181,35 +207,104 @@ body {
   box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
 }
 
-#speak-btn,
-#stop-btn {
-  margin: 5px;
+/* Progress bar styling */
+#progressContainer {
+  margin: 15px 0;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 8px;
+  transition: opacity 0.3s ease;
+}
+
+#progressLabel {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: #2c3e50;
+  font-weight: 500;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background-color: rgba(189, 195, 199, 0.3);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #00b894, #00cec9);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+  width: 0%;
+}
+
+.progress-bar-fill.success {
+  background: linear-gradient(90deg, #00b894, #55a3ff);
+}
+
+#progressStatus {
+  margin: 0;
+  font-size: 12px;
+  color: #636e72;
+  text-align: center;
+}
+
+/* TTS button styling */
+.tts-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+#speak-btn {
   padding: 12px 20px;
   border: none;
   border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
   transition: all 0.3s ease;
-}
-
-#speak-btn {
   background: linear-gradient(135deg, #00b894, #00cec9);
   color: white;
+  min-width: 160px;
+  position: relative;
 }
 
-#speak-btn:hover {
+#speak-btn:disabled {
+  background: linear-gradient(135deg, #bdc3c7, #95a5a6);
+  cursor: not-allowed;
+  transform: none;
+}
+
+#speak-btn:not(:disabled):hover {
   background: linear-gradient(135deg, #00a085, #00b3b3);
   transform: translateY(-2px);
 }
 
-#stop-btn {
-  background: linear-gradient(135deg, #e17055, #d63031);
-  color: white;
+.btn-content {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
-#stop-btn:hover {
-  background: linear-gradient(135deg, #d63031, #c0392b);
-  transform: translateY(-2px);
+/* Loading animation */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-content::before {
+  content: "";
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  border-top-color: transparent;
+  animation: spin 1s linear infinite;
+  margin-right: 8px;
 }
 
 /* Model info */

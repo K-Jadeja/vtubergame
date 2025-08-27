@@ -11,10 +11,15 @@
       <canvas id="canvas"></canvas>
       <div id="controls">
         <h2>Live2D Model Test</h2>
+        <div id="current-scene">
+          <h3 id="scene-title">No Model Loaded</h3>
+          <p id="scene-subtitle">Load a model to begin</p>
+        </div>
         <div id="model-selector">
           <h3>Model:</h3>
           <button id="load-shizuku">Load Shizuku (Cubism 2.1)</button>
           <button id="load-haru">Load Haru (Cubism 4)</button>
+          <button id="load-cyan">Load Cyan</button>
           <div id="scene-buttons"></div>
         </div>
         <div id="motions">
@@ -27,15 +32,31 @@
         </div>
         <div id="tts-controls">
           <h3>Text to Speech:</h3>
-          <input
-            type="text"
-            id="tts-text"
-            placeholder="Enter text to speak"
-            value="Hello! I'm a Live2D model!"
-          />
-          <br />
-          <button id="speak-btn">Speak</button>
-          <button id="stop-btn">Stop</button>
+          <textarea id="tts-text" placeholder="Enter text to speak" rows="3">
+Hello! I'm a Live2D model!</textarea
+          >
+
+          <div id="progressContainer" style="display: none">
+            <p id="progressLabel">Loading model...</p>
+            <div class="progress-bar">
+              <div id="progressBar" class="progress-bar-fill"></div>
+            </div>
+            <p id="progressStatus">0%</p>
+          </div>
+
+          <div class="tts-buttons">
+            <button id="speak-btn" disabled>
+              <span class="btn-content play-content">
+                🎤 Speak with Lipsync
+              </span>
+              <span class="btn-content stop-content" style="display: none">
+                ⏹️ Stop Speaking
+              </span>
+              <span class="btn-content loading-content" style="display: none">
+                ⏳ Processing...
+              </span>
+            </button>
+          </div>
         </div>
         <div id="model-info">
           <h3>Model Info:</h3>

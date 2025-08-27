@@ -27,3 +27,6 @@ dist-ssr
 
 # Game assets folder
 public/models/President\ game\ assets/
+
+# Source maps for minified libraries
+*.map

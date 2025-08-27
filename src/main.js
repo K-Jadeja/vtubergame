@@ -2,12 +2,19 @@
 import "./style.css";
 import { Application, Ticker } from "pixi.js";
 import { Live2DModel } from "pixi-live2d-display-lipsyncpatch";
+import { updateProgress } from "./updateProgress.js";
+import { Live2DAudioPlayer } from "./Live2DAudioPlayer.js";
+import { TTSButtonHandler } from "./TTSButtonHandler.js";
 
 // Register ticker for model updates
 Live2DModel.registerTicker(Ticker);
 
 let app;
 let model;
+let ttsWorker;
+let audioPlayer;
+let buttonHandler;
+
 const PRESIDENT_ASSETS_PATH = "/models/President game assets/";
 
 async function init() {
@@ -39,6 +46,8 @@ async function init() {
     loadModel("/models/shizuku/shizuku.model.json", "Shizuku");
   document.getElementById("load-haru").onclick = () =>
     loadModel("/models/haru/haru_greeter_t03.model3.json", "Haru");
+  document.getElementById("load-cyan").onclick = () =>
+    loadModel("/models/CyanSDLowRes/CyanSD.model3.json", "Cyan");
   try {
     const response = await fetch(`${PRESIDENT_ASSETS_PATH}models.json`);
     const sceneList = await response.json();
@@ -48,31 +57,106 @@ async function init() {
     alert("Could not load the scene list. Check the console.");
   }
 
-  // Setup TTS controls
-  document.getElementById("speak-btn").onclick = () => {
-    const text = document.getElementById("tts-text").value;
-    if (text && model) {
-      speakText(text);
-    } else if (!model) {
-      alert("Please load a model first!");
-    }
-  };
-
-  document.getElementById("stop-btn").onclick = () => {
-    if (model) {
-      model.stopSpeaking();
-      model.stopMotions();
-    }
-  };
+  // Initialize TTS system with StreamingKokoroJS architecture
+  initializeTTSSystem();
 
   console.log("Application initialized. Load a model to begin!");
+}
+
+function initializeTTSSystem() {
+  // Initialize TTS worker
+  ttsWorker = new Worker(new URL("./tts-worker.js", import.meta.url), {
+    type: "module",
+  });
+
+  // Initialize audio player for Live2D integration
+  audioPlayer = new Live2DAudioPlayer(ttsWorker, model);
+
+  // Initialize button handler
+  buttonHandler = new TTSButtonHandler(ttsWorker, audioPlayer);
+
+  // Set up message handlers
+  const onMessageReceived = async (e) => {
+    switch (e.data.status) {
+      case "loading_model_start":
+        console.log("Kokoro TTS model loading started:", e.data);
+        updateProgress(0, "Loading Kokoro TTS model...");
+        break;
+
+      case "loading_model_ready":
+        buttonHandler.enableButton();
+        updateProgress(100, "Kokoro TTS model loaded successfully");
+        console.log(
+          "Kokoro TTS model ready, voices available:",
+          Object.keys(e.data.voices || {}).length
+        );
+        break;
+
+      case "loading_model_progress":
+        let progress = Number(e.data.progress) * 100;
+        if (isNaN(progress)) progress = 0;
+        updateProgress(
+          progress,
+          `Loading Kokoro model: ${Math.round(progress)}%`
+        );
+        break;
+
+      case "stream_audio_data":
+        // Update button to stop state once we start receiving data
+        buttonHandler.updateToStopState();
+
+        // Queue audio data in our Live2D audio player
+        await audioPlayer.queueAudio(e.data.audio);
+        break;
+
+      case "complete":
+        try {
+          updateProgress(95, "Finalizing audio for Live2D...");
+
+          // Finalize all audio chunks into a single WAV blob
+          const audioUrl = await audioPlayer.finalizeAudio();
+
+          updateProgress(98, "Starting Live2D lipsync...");
+
+          // Play the finalized audio with Live2D lipsync
+          await audioPlayer.playWithLipsync();
+
+          updateProgress(100, "Speech completed successfully!");
+        } catch (error) {
+          console.error("Error during Live2D playback:", error);
+          updateProgress(100, "Error during speech playback!");
+        } finally {
+          buttonHandler.onComplete();
+        }
+        break;
+
+      case "error":
+        console.error("TTS Worker error:", e.data.error);
+        buttonHandler.onError(e.data.error);
+        break;
+    }
+  };
+
+  const onErrorReceived = (e) => {
+    console.error("TTS Worker error:", e);
+    buttonHandler.onError(e.message || "Unknown worker error");
+  };
+
+  ttsWorker.addEventListener("message", onMessageReceived);
+  ttsWorker.addEventListener("error", onErrorReceived);
+
+  // Initialize button handlers
+  buttonHandler.init();
+
+  // Show initial progress
+  updateProgress(0, "Initializing Kokoro TTS model...");
+  document.getElementById("progressContainer").style.display = "block";
 }
 
 /**
  * Creates the scene buttons from the fetched manifest data.
  */
 function createSceneButtons(sceneList) {
-  // NOTE: This assumes I changed my HTML to have <div id="scene-buttons"></div>
   const container = document.getElementById("scene-buttons");
   if (!container) return;
 
@@ -109,7 +193,7 @@ async function loadModel(modelPath, modelName) {
     });
 
     // Position and scale model
-    model.scale.set(0.3);
+    model.scale.set(0.1);
 
     // Center the model horizontally and position vertically
     model.x = app.screen.width / 2;
@@ -136,8 +220,19 @@ async function loadModel(modelPath, modelName) {
       }
     });
 
+    // Update audio player with new model
+    if (audioPlayer) {
+      audioPlayer.setLive2DModel(model);
+    }
+
     // Setup UI controls for this model
     setupModelControls(modelName);
+
+    // Update scene title
+    const sceneTitle = document.getElementById("scene-title");
+    const sceneSubtitle = document.getElementById("scene-subtitle");
+    sceneTitle.textContent = `Current Model: ${modelName}`;
+    sceneSubtitle.textContent = `Loaded from: ${modelPath.split("/").pop()}`;
 
     console.log(`${modelName} model loaded successfully!`);
     console.log("Stage children count:", app.stage.children.length);
@@ -166,6 +261,11 @@ function setupModelControls(modelName) {
   const motionManager = internalModel.motionManager;
   const expressionManager = internalModel.expressionManager;
 
+  console.log("Internal model:", internalModel);
+  console.log("Motion manager:", motionManager);
+  console.log("Expression manager:", expressionManager);
+  console.log("Model settings:", internalModel.settings);
+
   // Display model info
   displayModelInfo(modelName, motionManager, expressionManager);
 
@@ -192,9 +292,36 @@ function displayModelInfo(modelName, motionManager, expressionManager) {
     }
   }
 
-  // Expression info
-  const expressions = expressionManager?.definitions || [];
-  info += `<strong>Expressions:</strong> ${expressions.length}<br>`;
+  // Expression info - handle different Cubism versions
+  let expressionCount = 0;
+  let sourceMethod = "none";
+
+  // Method 1: Cubism 4 - expressionManager.definitions (array)
+  if (
+    expressionManager?.definitions &&
+    Array.isArray(expressionManager.definitions)
+  ) {
+    expressionCount = expressionManager.definitions.length;
+    sourceMethod = "expressionManager.definitions (Cubism 4)";
+  }
+  // Method 2: Cubism 2.1 - check model settings
+  else if (
+    model?.internalModel?.settings?.expressions &&
+    Array.isArray(model.internalModel.settings.expressions)
+  ) {
+    expressionCount = model.internalModel.settings.expressions.length;
+    sourceMethod = "settings.expressions (Cubism 2.1)";
+  }
+  // Method 3: Alternative - check if definitions is an object
+  else if (
+    expressionManager?.definitions &&
+    typeof expressionManager.definitions === "object"
+  ) {
+    expressionCount = Object.keys(expressionManager.definitions).length;
+    sourceMethod = "expressionManager.definitions (object)";
+  }
+
+  info += `<strong>Expressions:</strong> ${expressionCount} (via ${sourceMethod})<br>`;
 
   infoDiv.innerHTML = info;
 }
@@ -244,22 +371,70 @@ function setupExpressionControls(expressionManager) {
   const expressionsDiv = document.getElementById("expressions");
   expressionsDiv.innerHTML = "<h3>Expressions:</h3>";
 
-  const expressions = expressionManager?.definitions || [];
+  // Try different ways to get expressions for different Cubism versions
+  let expressions = [];
+  let sourceMethod = "";
+
+  // Method 1: Cubism 4 - expressionManager.definitions (array)
+  if (
+    expressionManager?.definitions &&
+    Array.isArray(expressionManager.definitions)
+  ) {
+    expressions = expressionManager.definitions;
+    sourceMethod = "expressionManager.definitions (Cubism 4)";
+  }
+  // Method 2: Cubism 2.1 - check model settings
+  else if (
+    model?.internalModel?.settings?.expressions &&
+    Array.isArray(model.internalModel.settings.expressions)
+  ) {
+    expressions = model.internalModel.settings.expressions;
+    sourceMethod = "settings.expressions (Cubism 2.1)";
+  }
+  // Method 3: Alternative - check if definitions is an object (fallback)
+  else if (
+    expressionManager?.definitions &&
+    typeof expressionManager.definitions === "object"
+  ) {
+    expressions = Object.values(expressionManager.definitions);
+    sourceMethod = "expressionManager.definitions (object)";
+  }
+
+  console.log(`Found ${expressions.length} expressions via ${sourceMethod}`);
+  console.log("Expressions array:", expressions);
 
   if (expressions.length === 0) {
     expressionsDiv.innerHTML += "<p>No expressions available</p>";
+    console.log("DEBUG: Expression manager:", expressionManager);
+    console.log("DEBUG: Model settings:", model?.internalModel?.settings);
+    console.log(
+      "DEBUG: Settings expressions:",
+      model?.internalModel?.settings?.expressions
+    );
     return;
   }
+
+  console.log(`Setting up ${expressions.length} expression buttons...`);
 
   // Add expression buttons
   expressions.forEach((expression, index) => {
     const button = document.createElement("button");
+    // Handle different naming conventions between Cubism versions
     const expressionName =
-      expression.name || expression.Name || `Expression ${index}`;
+      expression.name || // Cubism 2.1
+      expression.Name || // Cubism 4
+      expression.file || // Alternative
+      `Expression ${index}`; // Fallback
+
     button.textContent = expressionName;
     button.onclick = () => {
-      console.log(`Setting expression: ${expressionName} (${index})`);
-      model.expression(index);
+      console.log(`Setting expression: ${expressionName} (index: ${index})`);
+      try {
+        model.expression(index);
+        console.log(`Expression ${index} applied successfully`);
+      } catch (error) {
+        console.error(`Failed to apply expression ${index}:`, error);
+      }
     };
     button.className = "expression-btn";
     expressionsDiv.appendChild(button);
@@ -270,7 +445,12 @@ function setupExpressionControls(expressionManager) {
   resetBtn.textContent = "Reset Expression";
   resetBtn.onclick = () => {
     console.log("Resetting expression");
-    model.expression();
+    try {
+      model.expression();
+      console.log("Expression reset successfully");
+    } catch (error) {
+      console.error("Failed to reset expression:", error);
+    }
   };
   resetBtn.className = "expression-btn reset-btn";
   expressionsDiv.appendChild(resetBtn);
@@ -290,119 +470,8 @@ function triggerRandomMotion(groupName) {
   }
 }
 
-function speakText(text) {
-  if (!model) return;
-
-  console.log(`Speaking text: "${text}"`);
-
-  // Method 1: Use browser TTS with motion sync
-  const utterance = new SpeechSynthesisUtterance(text);
-
-  // Get available voices
-  const voices = speechSynthesis.getVoices();
-  if (voices.length > 0) {
-    // Prefer female voices for Live2D characters
-    const femaleVoice = voices.find(
-      (voice) =>
-        voice.name.toLowerCase().includes("female") ||
-        voice.name.toLowerCase().includes("woman") ||
-        voice.name.toLowerCase().includes("zira") ||
-        voice.name.toLowerCase().includes("hazel")
-    );
-    if (femaleVoice) {
-      utterance.voice = femaleVoice;
-    }
-  }
-
-  utterance.rate = 0.9;
-  utterance.pitch = 1.1;
-  utterance.volume = 1.0;
-
-  // Trigger a talking motion while speaking
-  utterance.onstart = () => {
-    console.log("TTS started, triggering talking motion");
-    // Try to find talking motions, fallback to idle
-    triggerRandomMotion("tapBody") ||
-      triggerRandomMotion("idle") ||
-      triggerRandomMotion("Idle");
-  };
-
-  utterance.onend = () => {
-    console.log("TTS ended");
-  };
-
-  utterance.onerror = (event) => {
-    console.error("TTS error:", event);
-  };
-
-  // Start speaking
-  speechSynthesis.cancel(); // Cancel any ongoing speech
-  speechSynthesis.speak(utterance);
-
-  // Method 2: Also demonstrate the lipsync feature with a sample audio (if available)
-  // This would be used with actual audio files for more realistic lip sync
-
-  // Check if we have sample audio files for this model
-  const sampleAudio = getSampleAudio();
-  if (sampleAudio) {
-    console.log(`Also playing sample audio: ${sampleAudio}`);
-
-    // Use the model's speak function for lip sync
-    model.speak(sampleAudio, {
-      volume: 0.7,
-      expression: getRandomExpression(),
-      resetExpression: true,
-      crossOrigin: "anonymous",
-      onFinish: () => console.log("Sample audio finished"),
-      onError: (err) => console.error("Sample audio error:", err),
-    });
-  }
-}
-
-function getSampleAudio() {
-  if (!model) return null;
-
-  // Try to find sample audio files in the model's sound directory
-  // This is based on the Shizuku model structure we copied
-  const sampleSounds = [
-    "/models/shizuku/sounds/tapBody_00.mp3",
-    "/models/shizuku/sounds/tapBody_01.mp3",
-    "/models/shizuku/sounds/pinchIn_00.mp3",
-    "/models/shizuku/sounds/flickHead_00.mp3",
-  ];
-
-  // Return a random sample sound
-  return sampleSounds[Math.floor(Math.random() * sampleSounds.length)];
-}
-
-function getRandomExpression() {
-  if (!model || !model.internalModel.expressionManager) return null;
-
-  const expressions = model.internalModel.expressionManager.definitions || [];
-  if (expressions.length === 0) return null;
-
-  return Math.floor(Math.random() * expressions.length);
-}
-
 // Initialize when DOM is loaded
 document.addEventListener("DOMContentLoaded", () => {
-  // Wait a bit for voices to load
-  setTimeout(() => {
-    if (speechSynthesis.getVoices().length === 0) {
-      speechSynthesis.addEventListener("voiceschanged", () => {
-        console.log(
-          "Available voices:",
-          speechSynthesis.getVoices().map((v) => v.name)
-        );
-      });
-    } else {
-      console.log(
-        "Available voices:",
-        speechSynthesis.getVoices().map((v) => v.name)
-      );
-    }
-  }, 100);
-
   init();
 });
 

@@ -1,3 +1,37 @@
-- Add headings so we know which scene we are at
-- learn the codebase thoroughly
-- add browser tts for now
+========================================================================
+
+- App works but still getting terminal error:
+  (base) PS D:\Workspace\Github-Projects\vtubergame> npm run dev
+
+> live2dtest@0.0.0 dev
+> vite
+
+You are using Node.js 20.15.0. Vite requires Node.js version 20.19+ or 22.12+. Please upgrade your Node.js version.
+
+VITE v7.1.3 ready in 253 ms
+
+➜ Local: http://localhost:5173/
+➜ Network: use --host to expose
+➜ press h + enter to show help
+11:45:10 am [vite] (client) Failed to load source map for D:/Workspace/Github-Projects/vtubergame/src/transformers.min.js.
+Error: An error occurred while trying to read the map file at transformers.min.js.map  
+Error: ENOENT: no such file or directory, open 'D:\Workspace\Github-Projects\vtubergame\src\transformers.min.js.map'
+at async open (node:internal/fs/promises:639:25)
+at async Object.readFile (node:internal/fs/promises:1249:14)
+at async extractSourcemapFromFile (file:///D:/Workspace/Github-Projects/vtubergame/node*modules/vite/dist/node/chunks/dep-Bj7gA1-0.js:8133:65)
+at async loadAndTransform (file:///D:/Workspace/Github-Projects/vtubergame/node_modules/vite/dist/node/chunks/dep-Bj7gA1-0.js:26278:22)
+11:45:10 am [vite] (client) warning:
+D:/Workspace/Github-Projects/vtubergame/src/transformers.min.js
+1 | ...();return URL.createObjectURL(t)},$e=async e=>(await import(e)).default,Pe=(me(),j(ue)).default,Ce=async()=>{if(!y...
+| ^
+2 | //# sourceMappingURL=transformers.min.js.map
+The above dynamic import cannot be analyzed by Vite.
+See https://github.com/rollup/plugins/tree/master/packages/dynamic-import-vars#limitations for supported dynamic import formats. If this is intended to be left as-is, you can use the /* @vite-ignore \_/ comment inside the import() call to suppress this warning.
+
+Plugin: vite:import-analysis
+File: D:/Workspace/Github-Projects/vtubergame/src/transformers.min.js
+
+- The model is 325mb and can be seen downloading on the networks tab. can we not make a better progress bar
+- I increased the timeout to 160 secounds because the model was too slow to produce and we got the wrong error that the model did not load
+- the motion and emotion buttons stop working after we make the model say something. they start working again if we change model and reload it. fix this
+- I should be able to make the live2d model do expressions and motions while it is speaking but it get's stun locked and doesn't move during and after speech
