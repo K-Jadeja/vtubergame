@@ -3,12 +3,12 @@
 
 function autoTestModels() {
   console.log("=== AUTO TESTING MODELS ===");
-  
+
   // Test Shizuku (Cubism 2.1) first
   console.log("Loading Shizuku model...");
   setTimeout(() => {
     document.getElementById("load-shizuku").click();
-    
+
     // After model loads, test expressions
     setTimeout(() => {
       console.log("=== SHIZUKU EXPRESSION TEST ===");
@@ -17,12 +17,12 @@ function autoTestModels() {
         testExpressions();
       }
     }, 3000);
-    
+
     // Then test Haru (Cubism 4)
     setTimeout(() => {
       console.log("Loading Haru model...");
       document.getElementById("load-haru").click();
-      
+
       // After model loads, test expressions
       setTimeout(() => {
         console.log("=== HARU EXPRESSION TEST ===");
@@ -32,13 +32,12 @@ function autoTestModels() {
         }
       }, 3000);
     }, 8000);
-    
   }, 1000);
 }
 
 // Run after page loads
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', autoTestModels);
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", autoTestModels);
 } else {
   autoTestModels();
 }

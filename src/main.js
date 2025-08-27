@@ -295,19 +295,28 @@ function displayModelInfo(modelName, motionManager, expressionManager) {
   // Expression info - handle different Cubism versions
   let expressionCount = 0;
   let sourceMethod = "none";
-  
+
   // Method 1: Cubism 4 - expressionManager.definitions (array)
-  if (expressionManager?.definitions && Array.isArray(expressionManager.definitions)) {
+  if (
+    expressionManager?.definitions &&
+    Array.isArray(expressionManager.definitions)
+  ) {
     expressionCount = expressionManager.definitions.length;
     sourceMethod = "expressionManager.definitions (Cubism 4)";
   }
   // Method 2: Cubism 2.1 - check model settings
-  else if (model?.internalModel?.settings?.expressions && Array.isArray(model.internalModel.settings.expressions)) {
+  else if (
+    model?.internalModel?.settings?.expressions &&
+    Array.isArray(model.internalModel.settings.expressions)
+  ) {
     expressionCount = model.internalModel.settings.expressions.length;
     sourceMethod = "settings.expressions (Cubism 2.1)";
   }
   // Method 3: Alternative - check if definitions is an object
-  else if (expressionManager?.definitions && typeof expressionManager.definitions === 'object') {
+  else if (
+    expressionManager?.definitions &&
+    typeof expressionManager.definitions === "object"
+  ) {
     expressionCount = Object.keys(expressionManager.definitions).length;
     sourceMethod = "expressionManager.definitions (object)";
   }
@@ -365,19 +374,28 @@ function setupExpressionControls(expressionManager) {
   // Try different ways to get expressions for different Cubism versions
   let expressions = [];
   let sourceMethod = "";
-  
+
   // Method 1: Cubism 4 - expressionManager.definitions (array)
-  if (expressionManager?.definitions && Array.isArray(expressionManager.definitions)) {
+  if (
+    expressionManager?.definitions &&
+    Array.isArray(expressionManager.definitions)
+  ) {
     expressions = expressionManager.definitions;
     sourceMethod = "expressionManager.definitions (Cubism 4)";
   }
   // Method 2: Cubism 2.1 - check model settings
-  else if (model?.internalModel?.settings?.expressions && Array.isArray(model.internalModel.settings.expressions)) {
+  else if (
+    model?.internalModel?.settings?.expressions &&
+    Array.isArray(model.internalModel.settings.expressions)
+  ) {
     expressions = model.internalModel.settings.expressions;
     sourceMethod = "settings.expressions (Cubism 2.1)";
   }
   // Method 3: Alternative - check if definitions is an object (fallback)
-  else if (expressionManager?.definitions && typeof expressionManager.definitions === 'object') {
+  else if (
+    expressionManager?.definitions &&
+    typeof expressionManager.definitions === "object"
+  ) {
     expressions = Object.values(expressionManager.definitions);
     sourceMethod = "expressionManager.definitions (object)";
   }
@@ -389,7 +407,10 @@ function setupExpressionControls(expressionManager) {
     expressionsDiv.innerHTML += "<p>No expressions available</p>";
     console.log("DEBUG: Expression manager:", expressionManager);
     console.log("DEBUG: Model settings:", model?.internalModel?.settings);
-    console.log("DEBUG: Settings expressions:", model?.internalModel?.settings?.expressions);
+    console.log(
+      "DEBUG: Settings expressions:",
+      model?.internalModel?.settings?.expressions
+    );
     return;
   }
 
@@ -400,11 +421,11 @@ function setupExpressionControls(expressionManager) {
     const button = document.createElement("button");
     // Handle different naming conventions between Cubism versions
     const expressionName =
-      expression.name ||           // Cubism 2.1
-      expression.Name ||           // Cubism 4
-      expression.file ||           // Alternative
-      `Expression ${index}`;       // Fallback
-    
+      expression.name || // Cubism 2.1
+      expression.Name || // Cubism 4
+      expression.file || // Alternative
+      `Expression ${index}`; // Fallback
+
     button.textContent = expressionName;
     button.onclick = () => {
       console.log(`Setting expression: ${expressionName} (index: ${index})`);
