@@ -113,9 +113,11 @@ export class TTSButtonHandler {
       this.currentTimeoutId = setTimeout(() => {
         if (this.isProcessing && this.mode === "live2d") {
           console.log("TTS timeout reached - Kokoro model failed to respond");
-          this.onError("Kokoro TTS failed to generate audio. Model may not be loaded properly.");
+          this.onError(
+            "Kokoro TTS failed to generate audio. Model may not be loaded properly."
+          );
         }
-      }, 30000); // Increased timeout to 30 seconds
+      }, 160000); // Increased timeout to 160 seconds
 
       // Send text to worker for processing
       this.worker.postMessage({
@@ -170,7 +172,7 @@ export class TTSButtonHandler {
     this.enableButton();
   }
 
-  // Called when there's an error  
+  // Called when there's an error
   onError(error) {
     console.error("TTS error:", error);
 
