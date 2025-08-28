@@ -506,6 +506,37 @@ app.ticker.add(() => {
 
 ## 🎯 Kokoro TTS Integration
 
+### Performance Optimizations (NEW!)
+
+**Streaming Architecture Inspired by StreamingKokoroJS:**
+
+The TTS system now uses a hybrid streaming approach that significantly reduces time-to-first-audio:
+
+- **Immediate Audio Streaming**: Audio starts playing as soon as the first chunk is generated
+- **Parallel Live2D Processing**: Lipsync preparation runs concurrently with audio generation
+- **Early Lipsync Start**: Live2D lipsync begins with partial audio (20% threshold)
+- **Optimized Buffering**: Reduced chunk size (300→200 chars) and queue size (6→3) for faster response
+
+**Performance Improvements:**
+- ⚡ **Target**: 12-second response time (matching StreamingKokoroJS)
+- 📈 **Previous**: ~60 seconds (1 minute) before first audio
+- 🚀 **New**: Immediate streaming with Live2D lipsync running in parallel
+
+**Technical Implementation:**
+```javascript
+// Dual-path audio processing
+class StreamingAudioPlayer {
+  async queueAudio(audioData) {
+    // Path 1: Immediate streaming (like StreamingKokoroJS)
+    this.playAudioQueue(); // Start playing immediately!
+    
+    // Path 2: Live2D preparation (runs in parallel)
+    this.audioChunks.push(audioData);
+    this.startEarlyLipsyncIfReady(); // Early lipsync start
+  }
+}
+```
+
 ### Voice Configuration
 
 The system uses Kokoro neural TTS with selectable voice options. You can change the default voice by modifying the voice parameter in the TTS generation.

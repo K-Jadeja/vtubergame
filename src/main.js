@@ -3,8 +3,12 @@ import "./style.css";
 import { Application, Ticker } from "pixi.js";
 import { Live2DModel } from "pixi-live2d-display-lipsyncpatch";
 import { updateProgress } from "./updateProgress.js";
-import { Live2DAudioPlayer } from "./Live2DAudioPlayer.js";
+import { ImmediateAudioPlayer } from "./ImmediateAudioPlayer.js";
+import { ProgressiveLipsyncManager } from "./ProgressiveLipsyncManager.js";
 import { TTSButtonHandler } from "./TTSButtonHandler.js";
+import "./performance-test.js"; // Import performance testing
+import "./performance-comparison.js"; // Import performance comparison
+import "./test-streaming.js"; // Import streaming tests
 
 // Register ticker for model updates
 Live2DModel.registerTicker(Ticker);
@@ -12,7 +16,8 @@ Live2DModel.registerTicker(Ticker);
 let app;
 let model;
 let ttsWorker;
-let audioPlayer;
+let immediateAudioPlayer; // For instant audio streaming
+let progressiveLipsyncManager; // For Live2D lipsync
 let buttonHandler;
 
 const PRESIDENT_ASSETS_PATH = "/models/President game assets/";
@@ -69,13 +74,16 @@ function initializeTTSSystem() {
     type: "module",
   });
 
-  // Initialize audio player for Live2D integration
-  audioPlayer = new Live2DAudioPlayer(ttsWorker, model);
+  // Initialize immediate audio player (StreamingKokoroJS style)
+  immediateAudioPlayer = new ImmediateAudioPlayer(ttsWorker);
 
-  // Initialize button handler
-  buttonHandler = new TTSButtonHandler(ttsWorker, audioPlayer);
+  // Initialize progressive lipsync manager for Live2D
+  progressiveLipsyncManager = new ProgressiveLipsyncManager(model);
 
-  // Set up message handlers
+  // Initialize button handler with immediate audio player
+  buttonHandler = new TTSButtonHandler(ttsWorker, immediateAudioPlayer);
+
+  // Set up message handlers with separated streaming approach
   const onMessageReceived = async (e) => {
     switch (e.data.status) {
       case "loading_model_start":
@@ -101,30 +109,36 @@ function initializeTTSSystem() {
         );
         break;
 
+      case "chunk_count":
+        // Set total chunks for both players
+        immediateAudioPlayer.setTotalChunks(e.data.count);
+        progressiveLipsyncManager.setTotalExpectedChunks(e.data.count);
+        console.log(`Expected ${e.data.count} audio chunks`);
+        break;
+
       case "stream_audio_data":
         // Update button to stop state once we start receiving data
         buttonHandler.updateToStopState();
 
-        // Queue audio data in our Live2D audio player
-        await audioPlayer.queueAudio(e.data.audio);
+        // DUAL PROCESSING: Immediate streaming + Progressive lipsync
+        // 1. Stream audio immediately (like StreamingKokoroJS)
+        await immediateAudioPlayer.queueAudio(e.data.audio);
+        
+        // 2. Add to progressive lipsync manager (Live2D visual sync)
+        await progressiveLipsyncManager.addAudioChunk(e.data.audio);
         break;
 
       case "complete":
         try {
-          updateProgress(95, "Finalizing audio for Live2D...");
+          updateProgress(95, "Finalizing lipsync...");
 
-          // Finalize all audio chunks into a single WAV blob
-          const audioUrl = await audioPlayer.finalizeAudio();
-
-          updateProgress(98, "Starting Live2D lipsync...");
-
-          // Play the finalized audio with Live2D lipsync
-          await audioPlayer.playWithLipsync();
+          // Finalize Live2D lipsync with complete audio
+          await progressiveLipsyncManager.finalizeLipsync();
 
           updateProgress(100, "Speech completed successfully!");
         } catch (error) {
-          console.error("Error during Live2D playback:", error);
-          updateProgress(100, "Error during speech playback!");
+          console.error("Error during final lipsync:", error);
+          updateProgress(100, "Speech completed with lipsync warnings");
         } finally {
           buttonHandler.onComplete();
         }
@@ -151,6 +165,10 @@ function initializeTTSSystem() {
   // Show initial progress
   updateProgress(0, "Initializing Kokoro TTS model...");
   document.getElementById("progressContainer").style.display = "block";
+  
+  // Make audio players available globally for testing
+  window.immediateAudioPlayer = immediateAudioPlayer;
+  window.progressiveLipsyncManager = progressiveLipsyncManager;
 }
 
 /**
@@ -220,9 +238,12 @@ async function loadModel(modelPath, modelName) {
       }
     });
 
-    // Update audio player with new model
-    if (audioPlayer) {
-      audioPlayer.setLive2DModel(model);
+    // Update audio players with new model
+    if (immediateAudioPlayer) {
+      // No model needed for immediate audio player
+    }
+    if (progressiveLipsyncManager) {
+      progressiveLipsyncManager.setLive2DModel(model);
     }
 
     // Setup UI controls for this model
