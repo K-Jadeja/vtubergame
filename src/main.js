@@ -4,6 +4,7 @@ import { Application, Ticker } from "pixi.js";
 import { Live2DModel } from "pixi-live2d-display-lipsyncpatch";
 import { updateProgress } from "./updateProgress.js";
 import { Live2DAudioPlayer } from "./Live2DAudioPlayer.js";
+import { StreamingLive2DAudioPlayer } from "./StreamingLive2DAudioPlayer.js";
 import { TTSButtonHandler } from "./TTSButtonHandler.js";
 
 // Register ticker for model updates
@@ -69,8 +70,8 @@ function initializeTTSSystem() {
     type: "module",
   });
 
-  // Initialize audio player for Live2D integration
-  audioPlayer = new Live2DAudioPlayer(ttsWorker, model);
+  // Initialize streaming audio player for Live2D integration
+  audioPlayer = new StreamingLive2DAudioPlayer(ttsWorker, model);
 
   // Initialize button handler
   buttonHandler = new TTSButtonHandler(ttsWorker, audioPlayer);
@@ -101,6 +102,12 @@ function initializeTTSSystem() {
         );
         break;
 
+      case "chunk_count":
+        // Set total chunks for progress tracking
+        audioPlayer.setTotalChunks(e.data.count);
+        updateProgress(5, `Processing ${e.data.count} text chunks...`);
+        break;
+
       case "stream_audio_data":
         // Update button to stop state once we start receiving data
         buttonHandler.updateToStopState();
@@ -111,19 +118,14 @@ function initializeTTSSystem() {
 
       case "complete":
         try {
-          updateProgress(95, "Finalizing audio for Live2D...");
+          updateProgress(98, "Finishing audio stream...");
 
-          // Finalize all audio chunks into a single WAV blob
-          const audioUrl = await audioPlayer.finalizeAudio();
-
-          updateProgress(98, "Starting Live2D lipsync...");
-
-          // Play the finalized audio with Live2D lipsync
-          await audioPlayer.playWithLipsync();
+          // Signal the streaming player that no more chunks are coming
+          audioPlayer.finishStreaming();
 
           updateProgress(100, "Speech completed successfully!");
         } catch (error) {
-          console.error("Error during Live2D playback:", error);
+          console.error("Error during streaming playback:", error);
           updateProgress(100, "Error during speech playback!");
         } finally {
           buttonHandler.onComplete();
