@@ -7,6 +7,7 @@ import { Live2DAudioPlayer } from "./Live2DAudioPlayer.js";
 import { StreamingAudioPlayer } from "./StreamingAudioPlayer.js";
 import { TTSButtonHandler } from "./TTSButtonHandler.js";
 import "./performance-test.js"; // Import performance testing
+import "./performance-comparison.js"; // Import performance comparison
 
 // Register ticker for model updates
 Live2DModel.registerTicker(Ticker);
