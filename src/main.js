@@ -8,6 +8,7 @@ import { ProgressiveLipsyncManager } from "./ProgressiveLipsyncManager.js";
 import { TTSButtonHandler } from "./TTSButtonHandler.js";
 import "./performance-test.js"; // Import performance testing
 import "./performance-comparison.js"; // Import performance comparison
+import "./test-streaming.js"; // Import streaming tests
 
 // Register ticker for model updates
 Live2DModel.registerTicker(Ticker);
