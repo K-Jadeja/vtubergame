@@ -80,6 +80,12 @@ export class TTSButtonHandler {
       this.mode = "none";
       this.isProcessing = false;
       this.audioPlayer.stop();
+      
+      // Also stop the progressive lipsync manager
+      if (window.progressiveLipsyncManager) {
+        window.progressiveLipsyncManager.stop();
+      }
+      
       updateProgress(100, "Speech stopped");
       setTimeout(() => {
         this.enableButton();
@@ -93,7 +99,12 @@ export class TTSButtonHandler {
       return;
     }
 
-    if (!this.audioPlayer.live2dModel) {
+    if (!this.audioPlayer) {
+      alert("Audio player not available!");
+      return;
+    }
+
+    if (!window.progressiveLipsyncManager || !window.progressiveLipsyncManager.live2dModel) {
       alert("Please load a Live2D model first!");
       return;
     }
@@ -106,8 +117,13 @@ export class TTSButtonHandler {
       updateProgress(0, "Initializing speech generation...");
 
       // Set estimated chunks based on text length
-      this.audioPlayer.setTotalChunks(Math.ceil(text.length / 300));
-      this.audioPlayer.reset();
+      this.audioPlayer.setTotalChunks(Math.ceil(text.length / 200)); // Updated to match worker
+      
+      // Reset audio player (immediate audio player doesn't have reset method)
+      // Only progressive lipsync manager needs reset
+      if (window.progressiveLipsyncManager) {
+        window.progressiveLipsyncManager.reset();
+      }
 
       // Set a timeout for the entire process (30 seconds) - only for complete failure
       this.currentTimeoutId = setTimeout(() => {

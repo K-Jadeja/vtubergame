@@ -25,9 +25,9 @@ function instrumentPerformance() {
   });
   
   // Hook into the streaming audio player if available
-  if (window.streamingAudioPlayer) {
-    const originalQueueAudio = window.streamingAudioPlayer.queueAudio.bind(window.streamingAudioPlayer);
-    window.streamingAudioPlayer.queueAudio = async function(audioData) {
+  if (window.immediateAudioPlayer) {
+    const originalQueueAudio = window.immediateAudioPlayer.queueAudio.bind(window.immediateAudioPlayer);
+    window.immediateAudioPlayer.queueAudio = async function(audioData) {
       if (!performanceMetrics.firstChunkTime) {
         performanceMetrics.firstChunkTime = performance.now();
         const timeToFirstChunk = performanceMetrics.firstChunkTime - performanceMetrics.buttonClickTime;
@@ -36,8 +36,8 @@ function instrumentPerformance() {
       return originalQueueAudio(audioData);
     };
     
-    const originalPlayAudioQueue = window.streamingAudioPlayer.playAudioQueue.bind(window.streamingAudioPlayer);
-    window.streamingAudioPlayer.playAudioQueue = async function() {
+    const originalPlayAudioQueue = window.immediateAudioPlayer.playAudioQueue.bind(window.immediateAudioPlayer);
+    window.immediateAudioPlayer.playAudioQueue = async function() {
       if (!performanceMetrics.firstAudioPlayTime) {
         performanceMetrics.firstAudioPlayTime = performance.now();
         const timeToFirstPlay = performanceMetrics.firstAudioPlayTime - performanceMetrics.buttonClickTime;
@@ -52,15 +52,18 @@ function instrumentPerformance() {
       }
       return originalPlayAudioQueue();
     };
-    
-    const originalPlayWithLipsync = window.streamingAudioPlayer.playWithLipsync.bind(window.streamingAudioPlayer);
-    window.streamingAudioPlayer.playWithLipsync = async function() {
+  }
+  
+  // Hook into progressive lipsync manager
+  if (window.progressiveLipsyncManager) {
+    const originalUpdateLipsync = window.progressiveLipsyncManager.updateLipsync.bind(window.progressiveLipsyncManager);
+    window.progressiveLipsyncManager.updateLipsync = async function() {
       if (!performanceMetrics.lipsyncStartTime) {
         performanceMetrics.lipsyncStartTime = performance.now();
         const timeToLipsync = performanceMetrics.lipsyncStartTime - performanceMetrics.buttonClickTime;
         console.log("📊 Live2D lipsync started after:", Math.round(timeToLipsync), "ms");
       }
-      return originalPlayWithLipsync();
+      return originalUpdateLipsync();
     };
   }
 }
