@@ -4,7 +4,9 @@ import { Application, Ticker } from "pixi.js";
 import { Live2DModel } from "pixi-live2d-display-lipsyncpatch";
 import { updateProgress } from "./updateProgress.js";
 import { Live2DAudioPlayer } from "./Live2DAudioPlayer.js";
+import { StreamingAudioPlayer } from "./StreamingAudioPlayer.js";
 import { TTSButtonHandler } from "./TTSButtonHandler.js";
+import "./performance-test.js"; // Import performance testing
 
 // Register ticker for model updates
 Live2DModel.registerTicker(Ticker);
@@ -12,7 +14,7 @@ Live2DModel.registerTicker(Ticker);
 let app;
 let model;
 let ttsWorker;
-let audioPlayer;
+let streamingAudioPlayer;
 let buttonHandler;
 
 const PRESIDENT_ASSETS_PATH = "/models/President game assets/";
@@ -69,13 +71,13 @@ function initializeTTSSystem() {
     type: "module",
   });
 
-  // Initialize audio player for Live2D integration
-  audioPlayer = new Live2DAudioPlayer(ttsWorker, model);
+  // Initialize streaming audio player for immediate playback + Live2D
+  streamingAudioPlayer = new StreamingAudioPlayer(ttsWorker, model);
 
-  // Initialize button handler
-  buttonHandler = new TTSButtonHandler(ttsWorker, audioPlayer);
+  // Initialize button handler with streaming audio player
+  buttonHandler = new TTSButtonHandler(ttsWorker, streamingAudioPlayer);
 
-  // Set up message handlers
+  // Set up message handlers with hybrid streaming approach
   const onMessageReceived = async (e) => {
     switch (e.data.status) {
       case "loading_model_start":
@@ -101,25 +103,37 @@ function initializeTTSSystem() {
         );
         break;
 
+      case "chunk_count":
+        // Set total chunks for progress tracking
+        streamingAudioPlayer.setTotalChunks(e.data.count);
+        console.log(`Expected ${e.data.count} audio chunks`);
+        break;
+
       case "stream_audio_data":
         // Update button to stop state once we start receiving data
         buttonHandler.updateToStopState();
 
-        // Queue audio data in our Live2D audio player
-        await audioPlayer.queueAudio(e.data.audio);
+        // Queue audio for BOTH immediate streaming AND Live2D preparation
+        await streamingAudioPlayer.queueAudio(e.data.audio);
+        
+        // Try to start early lipsync if we have enough chunks
+        await streamingAudioPlayer.startEarlyLipsyncIfReady();
         break;
 
       case "complete":
         try {
-          updateProgress(95, "Finalizing audio for Live2D...");
+          // Since we're already streaming audio, just finalize Live2D
+          updateProgress(95, "Finalizing Live2D lipsync...");
 
-          // Finalize all audio chunks into a single WAV blob
-          const audioUrl = await audioPlayer.finalizeAudio();
+          // Prepare final audio for Live2D if not already done
+          if (!streamingAudioPlayer.currentAudioUrl) {
+            await streamingAudioPlayer.prepareLive2DAudio();
+          }
 
-          updateProgress(98, "Starting Live2D lipsync...");
+          updateProgress(98, "Synchronizing Live2D lipsync...");
 
-          // Play the finalized audio with Live2D lipsync
-          await audioPlayer.playWithLipsync();
+          // Start or continue Live2D lipsync
+          await streamingAudioPlayer.playWithLipsync();
 
           updateProgress(100, "Speech completed successfully!");
         } catch (error) {
@@ -151,6 +165,9 @@ function initializeTTSSystem() {
   // Show initial progress
   updateProgress(0, "Initializing Kokoro TTS model...");
   document.getElementById("progressContainer").style.display = "block";
+  
+  // Make streaming audio player available globally for testing
+  window.streamingAudioPlayer = streamingAudioPlayer;
 }
 
 /**
@@ -221,8 +238,8 @@ async function loadModel(modelPath, modelName) {
     });
 
     // Update audio player with new model
-    if (audioPlayer) {
-      audioPlayer.setLive2DModel(model);
+    if (streamingAudioPlayer) {
+      streamingAudioPlayer.setLive2DModel(model);
     }
 
     // Setup UI controls for this model
