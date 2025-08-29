@@ -4,7 +4,8 @@ import { Application, Ticker } from "pixi.js";
 import { Live2DModel } from "pixi-live2d-display-lipsyncpatch";
 import { updateProgress } from "./updateProgress.js";
 import { Live2DAudioPlayer } from "./Live2DAudioPlayer.js";
-import { StreamingTTSExtension } from "./StreamingTTSExtension.js";
+import { StreamingTTSOptimized } from "./StreamingTTSOptimized.js";
+import { MockStreamingTTS } from "./MockStreamingTTS.js";
 import { TTSButtonHandler } from "./TTSButtonHandler.js";
 
 // Register ticker for model updates
@@ -74,8 +75,8 @@ function initializeTTSSystem() {
   // Initialize audio player for Live2D integration
   audioPlayer = new Live2DAudioPlayer(ttsWorker, model);
 
-  // NEW: Initialize streaming TTS extension
-  streamingExtension = new StreamingTTSExtension(audioPlayer, ttsWorker);
+  // NEW: Initialize optimized streaming TTS extension
+  streamingExtension = new StreamingTTSOptimized(audioPlayer, ttsWorker);
 
   // Initialize button handler with streaming extension
   buttonHandler = new TTSButtonHandler(ttsWorker, audioPlayer, streamingExtension);
@@ -107,37 +108,51 @@ function initializeTTSSystem() {
         break;
 
       case "stream_audio_data":
-        // Update button to stop state once we start receiving data
-        buttonHandler.updateToStopState();
+        // Only process if we're NOT in streaming mode (avoid double processing)
+        if (!streamingExtension.isCurrentlyStreaming()) {
+          // Update button to stop state once we start receiving data
+          buttonHandler.updateToStopState();
 
-        // Queue audio data in our Live2D audio player
-        await audioPlayer.queueAudio(e.data.audio);
+          // Queue audio data in our Live2D audio player
+          await audioPlayer.queueAudio(e.data.audio);
+        }
         break;
 
       case "complete":
-        try {
-          updateProgress(95, "Finalizing audio for Live2D...");
+        // Only process completion if we're NOT in streaming mode
+        if (!streamingExtension.isCurrentlyStreaming()) {
+          try {
+            updateProgress(95, "Finalizing audio for Live2D...");
 
-          // Finalize all audio chunks into a single WAV blob
-          const audioUrl = await audioPlayer.finalizeAudio();
+            // Finalize all audio chunks into a single WAV blob
+            const audioUrl = await audioPlayer.finalizeAudio();
 
-          updateProgress(98, "Starting Live2D lipsync...");
+            updateProgress(98, "Starting Live2D lipsync...");
 
-          // Play the finalized audio with Live2D lipsync
-          await audioPlayer.playWithLipsync();
+            // Play the finalized audio with Live2D lipsync
+            await audioPlayer.playWithLipsync();
 
-          updateProgress(100, "Speech completed successfully!");
-        } catch (error) {
-          console.error("Error during Live2D playback:", error);
-          updateProgress(100, "Error during speech playback!");
-        } finally {
-          buttonHandler.onComplete();
+            updateProgress(100, "Speech completed successfully!");
+          } catch (error) {
+            console.error("Error during Live2D playback:", error);
+            updateProgress(100, "Error during speech playback!");
+          } finally {
+            buttonHandler.onComplete();
+          }
         }
         break;
 
       case "error":
         console.error("TTS Worker error:", e.data.error);
-        buttonHandler.onError(e.data.error);
+        // Fall back to mock streaming for testing if TTS model fails
+        if (!streamingExtension || !streamingExtension.isStreamingSupported()) {
+          console.log("Switching to mock streaming for testing...");
+          streamingExtension = new MockStreamingTTS(audioPlayer);
+          buttonHandler.streamingExtension = streamingExtension;
+          buttonHandler.enableButton();
+        } else {
+          buttonHandler.onError(e.data.error);
+        }
         break;
     }
   };

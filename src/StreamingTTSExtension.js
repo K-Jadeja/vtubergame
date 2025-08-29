@@ -40,12 +40,13 @@ export class StreamingTTSExtension {
         // Create new handler that can switch between modes
         this.worker.onmessage = (e) => {
             if (this.isStreamingActive) {
+                // In streaming mode, only handle streaming messages
                 this.handleStreamingMessage(e);
-            }
-            
-            // Always call original handler to maintain compatibility
-            if (originalOnMessage) {
-                originalOnMessage.call(this.worker, e);
+            } else {
+                // In non-streaming mode, use original handler
+                if (originalOnMessage) {
+                    originalOnMessage.call(this.worker, e);
+                }
             }
         };
     }
@@ -62,6 +63,9 @@ export class StreamingTTSExtension {
                     // Convert ArrayBuffer to Float32Array and stream immediately
                     const audioData = new Float32Array(audio);
                     this.streamingSource.queueAudioChunk(audioData);
+                    
+                    // Immediately notify worker that buffer is processed for streaming
+                    this.worker.postMessage({ type: "buffer_processed" });
                     
                     // Start lip sync if model is available
                     if (this.audioPlayer.live2dModel && !this.lipSyncActive) {

@@ -54,7 +54,7 @@ export class StreamingAudioSource {
     }
 
     /**
-     * Add an audio chunk to the playback queue
+     * Add an audio chunk to the playback queue and play immediately
      * @param {Float32Array} audioData - Float32Array containing audio samples
      */
     async queueAudioChunk(audioData) {
@@ -65,11 +65,35 @@ export class StreamingAudioSource {
             
             this.audioQueue.push(audioBuffer);
             
-            // Start playback if not already playing
-            this.playAudioQueue();
+            // Start immediate playback for streaming
+            this.playAudioQueueImmediate();
         } catch (error) {
             console.warn("StreamingAudioSource: Failed to queue audio chunk", error);
             if (this.onError) this.onError(error);
+        }
+    }
+
+    /**
+     * Immediate audio playback for streaming - don't wait for full queue
+     */
+    async playAudioQueueImmediate() {
+        if (this.isPlaying) {
+            return; // Already playing, buffer will be processed in the current loop
+        }
+
+        this.isPlaying = true;
+
+        try {
+            while (this.audioQueue.length > 0) {
+                const buffer = this.audioQueue.shift();
+                await this.playBuffer(buffer);
+            }
+        } catch (error) {
+            console.warn("StreamingAudioSource: Error during immediate audio playback", error);
+            if (this.onError) this.onError(error);
+        } finally {
+            this.isPlaying = false;
+            if (this.onFinish) this.onFinish();
         }
     }
 

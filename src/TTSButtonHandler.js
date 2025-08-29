@@ -134,14 +134,19 @@ export class TTSButtonHandler {
         if (success) {
           updateProgress(20, "🎵 Streaming audio in real-time...");
           this.updateToStopState();
-          return; // Success - exit early
+          return; // Success - exit early, no fallback needed
+        } else {
+          // If streaming failed to start, fall back to chunking
+          console.log("Streaming failed to start, using legacy chunking TTS method");
+          updateProgress(15, "Using chunking method...");
+          this.fallbackToChunking(text);
         }
+      } else {
+        // Fallback to chunking method (EXISTING FUNCTIONALITY)
+        console.log("Streaming not supported, using legacy chunking TTS method");
+        updateProgress(15, "Using chunking method...");
+        this.fallbackToChunking(text);
       }
-
-      // Fallback to chunking method (EXISTING FUNCTIONALITY)
-      console.log("Using legacy chunking TTS method");
-      updateProgress(15, "Using chunking method...");
-      this.fallbackToChunking(text);
 
     } catch (error) {
       console.error("Error starting speech generation:", error);
