@@ -4,6 +4,7 @@ import { Application, Ticker } from "pixi.js";
 import { Live2DModel } from "pixi-live2d-display-lipsyncpatch";
 import { updateProgress } from "./updateProgress.js";
 import { Live2DAudioPlayer } from "./Live2DAudioPlayer.js";
+import { StreamingTTSExtension } from "./StreamingTTSExtension.js";
 import { TTSButtonHandler } from "./TTSButtonHandler.js";
 
 // Register ticker for model updates
@@ -14,6 +15,7 @@ let model;
 let ttsWorker;
 let audioPlayer;
 let buttonHandler;
+let streamingExtension; // NEW: Streaming TTS extension
 
 const PRESIDENT_ASSETS_PATH = "/models/President game assets/";
 
@@ -72,8 +74,11 @@ function initializeTTSSystem() {
   // Initialize audio player for Live2D integration
   audioPlayer = new Live2DAudioPlayer(ttsWorker, model);
 
-  // Initialize button handler
-  buttonHandler = new TTSButtonHandler(ttsWorker, audioPlayer);
+  // NEW: Initialize streaming TTS extension
+  streamingExtension = new StreamingTTSExtension(audioPlayer, ttsWorker);
+
+  // Initialize button handler with streaming extension
+  buttonHandler = new TTSButtonHandler(ttsWorker, audioPlayer, streamingExtension);
 
   // Set up message handlers
   const onMessageReceived = async (e) => {

@@ -1,9 +1,10 @@
 import { updateProgress } from "./updateProgress.js";
 
 export class TTSButtonHandler {
-  constructor(worker, audioPlayer) {
+  constructor(worker, audioPlayer, streamingExtension = null) {
     this.worker = worker;
     this.audioPlayer = audioPlayer;
+    this.streamingExtension = streamingExtension; // NEW: Streaming extension
     this.isProcessing = false;
     this.mode = "none";
 
@@ -79,7 +80,13 @@ export class TTSButtonHandler {
       // Stop current processing
       this.mode = "none";
       this.isProcessing = false;
+      
+      // Stop both streaming and regular audio
+      if (this.streamingExtension) {
+        this.streamingExtension.stopStreaming();
+      }
       this.audioPlayer.stop();
+      
       updateProgress(100, "Speech stopped");
       setTimeout(() => {
         this.enableButton();
@@ -105,6 +112,50 @@ export class TTSButtonHandler {
     try {
       updateProgress(0, "Initializing speech generation...");
 
+      // Try streaming TTS first if available (NEW FEATURE)
+      if (this.streamingExtension && this.streamingExtension.isStreamingSupported()) {
+        console.log("🚀 Using streaming TTS for ultra-fast response");
+        updateProgress(10, "Starting streaming speech...");
+        
+        const success = await this.streamingExtension.startStreamingTTS(text, {
+          voice: "af_nicole",
+          volume: 0.8,
+          onFinish: () => {
+            updateProgress(100, "⚡ Streaming speech completed successfully!");
+            this.onComplete();
+          },
+          onError: (error) => {
+            console.warn("Streaming TTS failed, falling back to chunking:", error);
+            updateProgress(30, "Falling back to chunking method...");
+            this.fallbackToChunking(text);
+          }
+        });
+
+        if (success) {
+          updateProgress(20, "🎵 Streaming audio in real-time...");
+          this.updateToStopState();
+          return; // Success - exit early
+        }
+      }
+
+      // Fallback to chunking method (EXISTING FUNCTIONALITY)
+      console.log("Using legacy chunking TTS method");
+      updateProgress(15, "Using chunking method...");
+      this.fallbackToChunking(text);
+
+    } catch (error) {
+      console.error("Error starting speech generation:", error);
+      updateProgress(100, "Error starting speech generation!");
+      this.enableButton();
+      this.isProcessing = false;
+    }
+  }
+
+  /**
+   * Fallback to the original chunking method
+   */
+  fallbackToChunking(text) {
+    try {
       // Set estimated chunks based on text length
       this.audioPlayer.setTotalChunks(Math.ceil(text.length / 300));
       this.audioPlayer.reset();
@@ -126,10 +177,8 @@ export class TTSButtonHandler {
         voice: "af_nicole", // Default voice
       });
     } catch (error) {
-      console.error("Error starting speech generation:", error);
-      updateProgress(100, "Error starting speech generation!");
-      this.enableButton();
-      this.isProcessing = false;
+      console.error("Error in fallback chunking method:", error);
+      this.onError("Failed to start speech generation");
     }
   }
 
