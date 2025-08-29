@@ -173,7 +173,7 @@ export class TTSButtonHandler {
   }
 
   // Called when there's an error
-  onError(error) {
+  onError(error, errorData = null) {
     console.error("TTS error:", error);
 
     // Clear timeout if it exists
@@ -184,7 +184,53 @@ export class TTSButtonHandler {
 
     this.isProcessing = false;
     this.mode = "none";
-    updateProgress(100, `Speech generation failed: ${error}`);
+    
+    // Show detailed error message with download instructions if available
+    if (errorData && errorData.errorType === "model_loading") {
+      this.showModelDownloadInstructions(errorData);
+    } else {
+      updateProgress(100, `Speech generation failed: ${error}`);
+    }
+    
     this.enableButton();
+  }
+  
+  // Show detailed instructions for downloading the model manually
+  showModelDownloadInstructions(errorData) {
+    updateProgress(100, "TTS Model Loading Failed - Manual Download Required");
+    
+    // Create a detailed error display
+    const progressContainer = document.getElementById("progressContainer");
+    if (progressContainer) {
+      const instructionsHtml = `
+        <div style="text-align: left; font-size: 13px; line-height: 1.4;">
+          <p><strong>The Kokoro TTS model failed to load from HuggingFace Hub.</strong></p>
+          
+          <p><strong>Possible causes:</strong></p>
+          <ul style="margin: 8px 0; padding-left: 20px;">
+            ${errorData.suggestions.map(suggestion => `<li>${suggestion}</li>`).join('')}
+          </ul>
+          
+          <p><strong>${errorData.downloadInstructions.title}</strong></p>
+          <ol style="margin: 8px 0; padding-left: 20px;">
+            ${errorData.downloadInstructions.steps.map(step => `<li>${step}</li>`).join('')}
+          </ol>
+          
+          <p><strong>Required files:</strong></p>
+          <ul style="margin: 8px 0; padding-left: 20px; font-family: monospace; font-size: 11px;">
+            ${errorData.downloadInstructions.files.map(file => `<li>${file}</li>`).join('')}
+          </ul>
+          
+          <p style="margin-top: 10px;">
+            <strong>Alternative:</strong> You can test the lip sync detection without TTS by clicking expressions and using the manual test function <code>testLipSync()</code> in the browser console.
+          </p>
+        </div>
+      `;
+      
+      const progressLabel = document.getElementById("progressLabel");
+      if (progressLabel) {
+        progressLabel.innerHTML = instructionsHtml;
+      }
+    }
   }
 }

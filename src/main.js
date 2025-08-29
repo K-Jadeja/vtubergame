@@ -5,6 +5,7 @@ import { Live2DModel } from "pixi-live2d-display-lipsyncpatch";
 import { updateProgress } from "./updateProgress.js";
 import { Live2DAudioPlayer } from "./Live2DAudioPlayer.js";
 import { TTSButtonHandler } from "./TTSButtonHandler.js";
+import { LipSyncMonitor } from "./LipSyncMonitor.js";
 
 // Register ticker for model updates
 Live2DModel.registerTicker(Ticker);
@@ -14,6 +15,7 @@ let model;
 let ttsWorker;
 let audioPlayer;
 let buttonHandler;
+let lipSyncMonitor;
 
 const PRESIDENT_ASSETS_PATH = "/models/President game assets/";
 
@@ -132,7 +134,7 @@ function initializeTTSSystem() {
 
       case "error":
         console.error("TTS Worker error:", e.data.error);
-        buttonHandler.onError(e.data.error);
+        buttonHandler.onError(e.data.error, e.data);
         break;
     }
   };
@@ -224,6 +226,17 @@ async function loadModel(modelPath, modelName) {
     if (audioPlayer) {
       audioPlayer.setLive2DModel(model);
     }
+
+    // Initialize lip sync monitor for the new model
+    if (lipSyncMonitor) {
+      lipSyncMonitor.stopMonitoring();
+    }
+    lipSyncMonitor = new LipSyncMonitor(model);
+    
+    // Setup lip movement monitoring with UI updates
+    lipSyncMonitor.startMonitoring((isMoving, mouthValues, stats) => {
+      updateLipSyncStatus(isMoving, mouthValues, stats);
+    });
 
     // Setup UI controls for this model
     setupModelControls(modelName);
@@ -499,3 +512,83 @@ function debugModel() {
 
 // Add debug function to window for console access
 window.debugModel = debugModel;
+
+// Update lip sync status display
+function updateLipSyncStatus(isMoving, mouthValues, stats) {
+  const movementStatus = document.getElementById("lip-movement-status");
+  const mouthOpenValue = document.getElementById("mouth-open-value");
+  const mouthFormValue = document.getElementById("mouth-form-value");
+  const movementPercentage = document.getElementById("movement-percentage");
+
+  if (movementStatus) {
+    movementStatus.textContent = isMoving ? "🟢 Moving" : "🔴 Not Moving";
+    movementStatus.className = `status-value ${isMoving ? "moving" : "not-moving"}`;
+    if (isMoving) {
+      movementStatus.classList.add("lip-movement-active");
+    } else {
+      movementStatus.classList.remove("lip-movement-active");
+    }
+  }
+
+  if (mouthOpenValue) {
+    mouthOpenValue.textContent = mouthValues.open.toFixed(2);
+  }
+
+  if (mouthFormValue) {
+    mouthFormValue.textContent = mouthValues.form.toFixed(2);
+  }
+
+  if (movementPercentage && stats) {
+    movementPercentage.textContent = `${stats.movementPercentage.toFixed(0)}%`;
+  }
+}
+
+// Add lip sync testing function for console access
+window.testLipSync = function() {
+  if (!lipSyncMonitor) {
+    console.log("No lip sync monitor available. Load a model first.");
+    return;
+  }
+  
+  const status = lipSyncMonitor.getStatus();
+  console.log("Lip Sync Monitor Status:", status);
+  
+  if (!status.hasModel) {
+    console.log("No Live2D model available for testing.");
+    return;
+  }
+  
+  // Try to manually set mouth parameters for testing
+  if (model?.internalModel?.coreModel) {
+    console.log("Testing manual mouth parameter changes...");
+    
+    const testSequence = [
+      { open: 0.5, form: 0.2 },
+      { open: 0.8, form: -0.1 },
+      { open: 0.3, form: 0.5 },
+      { open: 0.0, form: 0.0 }
+    ];
+    
+    let index = 0;
+    const interval = setInterval(() => {
+      if (index >= testSequence.length) {
+        clearInterval(interval);
+        console.log("Manual mouth test completed.");
+        return;
+      }
+      
+      const params = testSequence[index];
+      try {
+        model.internalModel.coreModel.setParameterValueById('ParamMouthOpenY', params.open);
+        model.internalModel.coreModel.setParameterValueById('ParamMouthForm', params.form);
+        console.log(`Set mouth parameters: open=${params.open}, form=${params.form}`);
+      } catch (error) {
+        console.warn("Could not set mouth parameters:", error);
+      }
+      
+      index++;
+    }, 500);
+  } else {
+    console.log("Could not access model core for manual testing.");
+  }
+};
