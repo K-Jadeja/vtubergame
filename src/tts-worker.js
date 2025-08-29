@@ -57,7 +57,7 @@ self.postMessage({ status: "loading_model_ready", voices: tts.voices, device });
 
 // Track how many buffers are currently in the queue
 let bufferQueueSize = 0;
-const MAX_QUEUE_SIZE = 6;
+const MAX_QUEUE_SIZE = 3; // Reduced for faster streaming response
 let shouldStop = false;
 let isGenerating = false; // Track if we're currently generating to prevent session conflicts
 
@@ -101,7 +101,7 @@ self.addEventListener("message", async (e) => {
 
         while (bufferQueueSize >= MAX_QUEUE_SIZE && !shouldStop) {
           console.log("Waiting for buffer space...");
-          await new Promise((resolve) => setTimeout(resolve, 1000));
+          await new Promise((resolve) => setTimeout(resolve, 100)); // Faster polling for streaming
           if (shouldStop) break;
         }
 
