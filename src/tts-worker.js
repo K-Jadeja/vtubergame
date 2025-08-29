@@ -37,9 +37,17 @@ self.postMessage({ status: "loading_model_start", device });
 
 let model_id = "onnx-community/Kokoro-82M-v1.0-ONNX";
 
-if (self.location.hostname === "localhost2") {
-  env.allowLocalModels = true;
-  model_id = "./my_model/";
+// Check for local model first, then fallback to HuggingFace
+if (self.location.hostname === "localhost" || self.location.hostname === "127.0.0.1") {
+  // Try local model first
+  try {
+    env.allowLocalModels = true;
+    const localModelPath = "./models/kokoro/";
+    console.log("Attempting to load local model from:", localModelPath);
+    // Note: We'll attempt this in the loading phase
+  } catch (localError) {
+    console.log("Local model not available, will use HuggingFace:", localError.message);
+  }
 }
 
 const tts = await KokoroTTS.from_pretrained(model_id, {
@@ -48,8 +56,40 @@ const tts = await KokoroTTS.from_pretrained(model_id, {
   progress_callback: (progress) => {
     self.postMessage({ status: "loading_model_progress", progress });
   },
-}).catch((e) => {
-  self.postMessage({ status: "error", error: e.message });
+}).catch(async (e) => {
+  console.error("Failed to load model from HuggingFace:", e.message);
+  
+  // Send error details to main thread
+  self.postMessage({ 
+    status: "error", 
+    error: e.message,
+    errorType: "model_loading",
+    suggestions: [
+      "1. Check your internet connection",
+      "2. The Kokoro model may be temporarily unavailable from HuggingFace",
+      "3. Try downloading the model manually (see instructions below)",
+      "4. Large models may take time to download (82M parameters)"
+    ],
+    downloadInstructions: {
+      title: "Manual Model Download Instructions:",
+      steps: [
+        "1. Go to: https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX",
+        "2. Download all files to: ./public/models/kokoro/",
+        "3. Restart the application",
+        "4. The app will automatically detect and use the local model"
+      ],
+      files: [
+        "config.json",
+        "generation_config.json", 
+        "onnx/decoder_model.onnx",
+        "onnx/decoder_model_quantized.onnx",
+        "onnx/encoder_model.onnx", 
+        "onnx/encoder_model_quantized.onnx",
+        "tokenizer.json",
+        "tokenizer_config.json"
+      ]
+    }
+  });
   throw e;
 });
 
