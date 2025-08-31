@@ -57,6 +57,29 @@ Hello! I'm a Live2D model!</textarea
               </span>
             </button>
           </div>
+
+          <!-- Lip Sync Status Display -->
+          <div id="lipsync-status">
+            <h4>Lip Sync Status:</h4>
+            <div class="status-grid">
+              <div class="status-item">
+                <span class="status-label">Movement:</span>
+                <span id="lip-movement-status" class="status-value">🔴 Not Moving</span>
+              </div>
+              <div class="status-item">
+                <span class="status-label">Mouth Open:</span>
+                <span id="mouth-open-value" class="status-value">0.00</span>
+              </div>
+              <div class="status-item">
+                <span class="status-label">Mouth Form:</span>
+                <span id="mouth-form-value" class="status-value">0.00</span>
+              </div>
+              <div class="status-item">
+                <span class="status-label">Activity:</span>
+                <span id="movement-percentage" class="status-value">0%</span>
+              </div>
+            </div>
+          </div>
         </div>
         <div id="model-info">
           <h3>Model Info:</h3>
