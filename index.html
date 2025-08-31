@@ -32,6 +32,23 @@
         </div>
         <div id="tts-controls">
           <h3>Text to Speech:</h3>
+          
+          <!-- Audio Mode Toggle -->
+          <div class="audio-mode-controls">
+            <div class="mode-toggle">
+              <label for="audio-mode-toggle">Audio Mode:</label>
+              <select id="audio-mode-toggle">
+                <option value="streaming" selected>Streaming (Instant Audio)</option>
+                <option value="batch">Batch (Complete then Play)</option>
+              </select>
+              <span id="audioModeIndicator" class="mode-indicator">Mode: Streaming</span>
+            </div>
+            <p class="mode-description">
+              <strong>Streaming:</strong> Audio plays instantly as it's generated (like AI-VTuber)<br>
+              <strong>Batch:</strong> Audio plays after all generation is complete (original behavior)
+            </p>
+          </div>
+
           <textarea id="tts-text" placeholder="Enter text to speak" rows="3">
 Hello! I'm a Live2D model!</textarea
           >
