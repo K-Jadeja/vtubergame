@@ -435,3 +435,65 @@ body {
     transform: rotate(360deg);
   }
 }
+
+/* Audio mode controls styling */
+.audio-mode-controls {
+  margin-bottom: 15px;
+  padding: 12px;
+  background: rgba(52, 152, 219, 0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(52, 152, 219, 0.2);
+}
+
+.mode-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.mode-toggle label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #2c3e50;
+  min-width: 80px;
+}
+
+#audio-mode-toggle {
+  padding: 6px 12px;
+  border: 1px solid #bdc3c7;
+  border-radius: 6px;
+  background: white;
+  font-size: 14px;
+  color: #2c3e50;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 160px;
+}
+
+#audio-mode-toggle:focus {
+  outline: none;
+  border-color: #3498db;
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+.mode-indicator {
+  font-size: 12px;
+  color: #27ae60;
+  font-weight: 500;
+  padding: 2px 8px;
+  background: rgba(39, 174, 96, 0.1);
+  border-radius: 4px;
+}
+
+.mode-description {
+  font-size: 12px;
+  color: #7f8c8d;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.mode-description strong {
+  color: #2c3e50;
+}

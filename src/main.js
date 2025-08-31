@@ -4,6 +4,7 @@ import { Application, Ticker } from "pixi.js";
 import { Live2DModel } from "pixi-live2d-display-lipsyncpatch";
 import { updateProgress } from "./updateProgress.js";
 import { Live2DAudioPlayer } from "./Live2DAudioPlayer.js";
+import { StreamingLive2DAudioPlayer } from "./StreamingLive2DAudioPlayer.js";
 import { TTSButtonHandler } from "./TTSButtonHandler.js";
 
 // Register ticker for model updates
@@ -12,8 +13,10 @@ Live2DModel.registerTicker(Ticker);
 let app;
 let model;
 let ttsWorker;
-let audioPlayer;
+let audioPlayer; // For batch mode (existing functionality)
+let streamingAudioPlayer; // For streaming mode (new functionality)
 let buttonHandler;
+let isStreamingMode = true; // Default to streaming mode for instant audio
 
 const PRESIDENT_ASSETS_PATH = "/models/President game assets/";
 
@@ -59,6 +62,29 @@ async function init() {
 
   // Initialize TTS system with StreamingKokoroJS architecture
   initializeTTSSystem();
+  
+  // Set up audio mode toggle
+  const audioModeToggle = document.getElementById("audio-mode-toggle");
+  if (audioModeToggle) {
+    audioModeToggle.addEventListener("change", (e) => {
+      const selectedMode = e.target.value;
+      isStreamingMode = selectedMode === "streaming";
+      
+      const modeText = isStreamingMode ? "Streaming" : "Batch";
+      console.log(`Switched to ${modeText} mode`);
+      
+      // Update button handler with current player
+      if (buttonHandler) {
+        buttonHandler.audioPlayer = getCurrentAudioPlayer();
+      }
+      
+      // Update UI indicator
+      const modeIndicator = document.getElementById("audioModeIndicator");
+      if (modeIndicator) {
+        modeIndicator.textContent = `Mode: ${modeText}`;
+      }
+    });
+  }
 
   console.log("Application initialized. Load a model to begin!");
 }
@@ -69,11 +95,12 @@ function initializeTTSSystem() {
     type: "module",
   });
 
-  // Initialize audio player for Live2D integration
-  audioPlayer = new Live2DAudioPlayer(ttsWorker, model);
+  // Initialize both audio players for different modes
+  audioPlayer = new Live2DAudioPlayer(ttsWorker, model); // Batch mode
+  streamingAudioPlayer = new StreamingLive2DAudioPlayer(ttsWorker, model); // Streaming mode
 
-  // Initialize button handler
-  buttonHandler = new TTSButtonHandler(ttsWorker, audioPlayer);
+  // Initialize button handler with both players
+  buttonHandler = new TTSButtonHandler(ttsWorker, getCurrentAudioPlayer());
 
   // Set up message handlers
   const onMessageReceived = async (e) => {
@@ -101,32 +128,50 @@ function initializeTTSSystem() {
         );
         break;
 
+      case "chunk_count":
+        // Set total chunks for both players
+        audioPlayer.setTotalChunks(e.data.count);
+        streamingAudioPlayer.setTotalChunks(e.data.count);
+        break;
+
       case "stream_audio_data":
         // Update button to stop state once we start receiving data
         buttonHandler.updateToStopState();
 
-        // Queue audio data in our Live2D audio player
-        await audioPlayer.queueAudio(e.data.audio);
+        if (isStreamingMode) {
+          // Streaming mode: play audio chunks immediately with Live2D lip sync
+          await streamingAudioPlayer.queueAudio(e.data.audio);
+        } else {
+          // Batch mode: queue audio data in Live2D audio player (original behavior)
+          await audioPlayer.queueAudio(e.data.audio);
+        }
         break;
 
       case "complete":
-        try {
-          updateProgress(95, "Finalizing audio for Live2D...");
-
-          // Finalize all audio chunks into a single WAV blob
-          const audioUrl = await audioPlayer.finalizeAudio();
-
-          updateProgress(98, "Starting Live2D lipsync...");
-
-          // Play the finalized audio with Live2D lipsync
-          await audioPlayer.playWithLipsync();
-
-          updateProgress(100, "Speech completed successfully!");
-        } catch (error) {
-          console.error("Error during Live2D playback:", error);
-          updateProgress(100, "Error during speech playback!");
-        } finally {
+        if (isStreamingMode) {
+          // Streaming mode: audio is already playing, just update progress
+          updateProgress(100, "Streaming speech completed successfully!");
           buttonHandler.onComplete();
+        } else {
+          // Batch mode: use original finalize and play logic
+          try {
+            updateProgress(95, "Finalizing audio for Live2D...");
+
+            // Finalize all audio chunks into a single WAV blob
+            const audioUrl = await audioPlayer.finalizeAudio();
+
+            updateProgress(98, "Starting Live2D lipsync...");
+
+            // Play the finalized audio with Live2D lipsync
+            await audioPlayer.playWithLipsync();
+
+            updateProgress(100, "Speech completed successfully!");
+          } catch (error) {
+            console.error("Error during Live2D playback:", error);
+            updateProgress(100, "Error during speech playback!");
+          } finally {
+            buttonHandler.onComplete();
+          }
         }
         break;
 
@@ -152,6 +197,32 @@ function initializeTTSSystem() {
   updateProgress(0, "Initializing Kokoro TTS model...");
   document.getElementById("progressContainer").style.display = "block";
 }
+
+// Helper function to get the current audio player based on mode
+function getCurrentAudioPlayer() {
+  return isStreamingMode ? streamingAudioPlayer : audioPlayer;
+}
+
+// Function to toggle between streaming and batch modes
+function toggleAudioMode() {
+  isStreamingMode = !isStreamingMode;
+  const modeText = isStreamingMode ? "Streaming" : "Batch";
+  console.log(`Switched to ${modeText} mode`);
+  
+  // Update button handler with current player
+  if (buttonHandler) {
+    buttonHandler.audioPlayer = getCurrentAudioPlayer();
+  }
+  
+  // Update UI indicator if available
+  const modeIndicator = document.getElementById("audioModeIndicator");
+  if (modeIndicator) {
+    modeIndicator.textContent = `Mode: ${modeText}`;
+  }
+}
+
+// Expose mode toggle to window for UI controls
+window.toggleAudioMode = toggleAudioMode;
 
 /**
  * Creates the scene buttons from the fetched manifest data.
@@ -220,9 +291,12 @@ async function loadModel(modelPath, modelName) {
       }
     });
 
-    // Update audio player with new model
+    // Update audio players with new model
     if (audioPlayer) {
       audioPlayer.setLive2DModel(model);
+    }
+    if (streamingAudioPlayer) {
+      streamingAudioPlayer.setLive2DModel(model);
     }
 
     // Setup UI controls for this model
