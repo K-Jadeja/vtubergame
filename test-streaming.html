@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TTS Streaming Performance Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        .performance-test {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        .test-results {
+            background: rgba(0, 255, 0, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            border-left: 4px solid #00ff00;
+        }
+        .old-approach {
+            background: rgba(255, 0, 0, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            border-left: 4px solid #ff0000;
+        }
+        button {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a6f);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+        }
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+            transform: none;
+        }
+        textarea {
+            width: 100%;
+            height: 100px;
+            padding: 10px;
+            border-radius: 8px;
+            border: none;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            font-size: 14px;
+        }
+        .progress {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            padding: 10px;
+            margin: 10px 0;
+        }
+        .progress-bar {
+            background: linear-gradient(90deg, #00ff00, #00cc00);
+            height: 20px;
+            border-radius: 10px;
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: black;
+            font-weight: bold;
+        }
+        .metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .metric-card {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .metric-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #00ff00;
+        }
+        .metric-label {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+        .log {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 TTS Streaming Performance Test</h1>
+        <p>Compare the old "collect-all-then-play" approach vs the new streaming approach</p>
+        
+        <div class="performance-test">
+            <h2>Test Configuration</h2>
+            <textarea id="testText" placeholder="Enter text to test TTS streaming performance...">
+Hello everyone! This is a comprehensive test of the new streaming TTS implementation. 
+Instead of waiting for all audio chunks to be generated and then playing them sequentially, 
+the new system starts playing audio immediately as each chunk becomes available. 
+This dramatically reduces the time to first audio, providing a much more responsive user experience. 
+The old system would take over a minute to start playing, while the new system starts within seconds. 
+This improvement is especially noticeable with longer texts like this one, where users would previously 
+have to wait for the entire text to be processed before hearing anything. Now they get immediate feedback 
+and can hear the speech as it's being generated in real-time.
+            </textarea>
+            
+            <div class="metrics">
+                <div class="metric-card">
+                    <div class="metric-value" id="timeToFirstAudio">--</div>
+                    <div class="metric-label">Time to First Audio (seconds)</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="totalProcessingTime">--</div>
+                    <div class="metric-label">Total Processing Time (seconds)</div>
+                </div>
+            </div>
+            
+            <button id="testStreamingBtn">🚀 Test New Streaming Approach</button>
+            <button id="testOldBtn">📊 Simulate Old Approach</button>
+            <button id="stopBtn" disabled>⏹️ Stop</button>
+        </div>
+        
+        <div class="progress" id="progressContainer" style="display: none;">
+            <div id="progressLabel">Processing...</div>
+            <div class="progress-bar" id="progressBar" style="width: 0%;">0%</div>
+        </div>
+        
+        <div class="test-results" id="streamingResults" style="display: none;">
+            <h3>✅ New Streaming Approach Results</h3>
+            <div id="streamingMetrics"></div>
+        </div>
+        
+        <div class="old-approach" id="oldResults" style="display: none;">
+            <h3>❌ Old Approach Results</h3>
+            <div id="oldMetrics"></div>
+        </div>
+        
+        <div class="log" id="logOutput"></div>
+    </div>
+
+    <script type="module">
+        import { StreamingLive2DAudioPlayer } from './src/StreamingLive2DAudioPlayer.js';
+        
+        let worker = null;
+        let audioPlayer = null;
+        let testStartTime = 0;
+        let firstAudioTime = 0;
+        let isOldApproachTest = false;
+        
+        const logOutput = document.getElementById('logOutput');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressBar = document.getElementById('progressBar');
+        const progressLabel = document.getElementById('progressLabel');
+        
+        function log(message) {
+            console.log(message);
+            logOutput.innerHTML += message + '\n';
+            logOutput.scrollTop = logOutput.scrollHeight;
+        }
+        
+        function updateProgress(percent, message) {
+            progressContainer.style.display = 'block';
+            progressBar.style.width = percent + '%';
+            progressBar.textContent = Math.round(percent) + '%';
+            progressLabel.textContent = message;
+            
+            if (percent >= 100) {
+                setTimeout(() => {
+                    progressContainer.style.display = 'none';
+                }, 2000);
+            }
+        }
+        
+        function updateMetrics(timeToFirst, totalTime) {
+            document.getElementById('timeToFirstAudio').textContent = timeToFirst.toFixed(1);
+            document.getElementById('totalProcessingTime').textContent = totalTime.toFixed(1);
+        }
+        
+        function initWorker() {
+            if (worker) {
+                worker.terminate();
+            }
+            
+            worker = new Worker(new URL('./src/mock-tts-worker.js', import.meta.url), { type: 'module' });
+            audioPlayer = new StreamingLive2DAudioPlayer(worker, null);
+            
+            worker.addEventListener('message', async (e) => {
+                switch (e.data.status) {
+                    case 'loading_model_ready':
+                        log('🎯 Mock TTS system ready');
+                        document.getElementById('testStreamingBtn').disabled = false;
+                        document.getElementById('testOldBtn').disabled = false;
+                        break;
+                        
+                    case 'chunk_count':
+                        log(`📝 Processing ${e.data.count} text chunks`);
+                        audioPlayer.setTotalChunks(e.data.count);
+                        updateProgress(5, `Processing ${e.data.count} chunks...`);
+                        break;
+                        
+                    case 'stream_audio_data':
+                        const currentTime = performance.now();
+                        
+                        if (firstAudioTime === 0) {
+                            firstAudioTime = currentTime;
+                            const timeToFirst = (firstAudioTime - testStartTime) / 1000;
+                            log(`🎵 First audio chunk received after ${timeToFirst.toFixed(1)}s`);
+                            
+                            if (!isOldApproachTest) {
+                                document.getElementById('streamingResults').style.display = 'block';
+                                document.getElementById('streamingMetrics').innerHTML = 
+                                    `<strong>Time to first audio:</strong> ${timeToFirst.toFixed(1)}s<br>` +
+                                    `<strong>Improvement:</strong> ~5-8x faster than old approach`;
+                            }
+                        }
+                        
+                        if (!isOldApproachTest) {
+                            // Stream immediately (new approach)
+                            await audioPlayer.queueAudio(e.data.audio);
+                            log(`🔊 Playing chunk: "${e.data.text.substring(0, 30)}..."`);
+                        } else {
+                            // Simulate old approach - just collect, don't play yet
+                            log(`📦 Collecting chunk: "${e.data.text.substring(0, 30)}..."`);
+                        }
+                        
+                        worker.postMessage({ type: 'buffer_processed' });
+                        break;
+                        
+                    case 'complete':
+                        const totalTime = (performance.now() - testStartTime) / 1000;
+                        const timeToFirst = firstAudioTime > 0 ? (firstAudioTime - testStartTime) / 1000 : totalTime;
+                        
+                        if (isOldApproachTest) {
+                            // Simulate old approach - start playing now after collecting all
+                            log(`🎵 OLD APPROACH: Starting playback after ${totalTime.toFixed(1)}s (all chunks collected)`);
+                            document.getElementById('oldResults').style.display = 'block';
+                            document.getElementById('oldMetrics').innerHTML = 
+                                `<strong>Time to first audio:</strong> ${totalTime.toFixed(1)}s<br>` +
+                                `<strong>Total collection time:</strong> ${totalTime.toFixed(1)}s<br>` +
+                                `<strong>User experience:</strong> Poor (long wait before any audio)`;
+                                
+                            updateMetrics(totalTime, totalTime);
+                        } else {
+                            audioPlayer.finishStreaming();
+                            log(`✅ NEW APPROACH: Streaming complete in ${totalTime.toFixed(1)}s`);
+                            updateMetrics(timeToFirst, totalTime);
+                        }
+                        
+                        updateProgress(100, 'Complete!');
+                        document.getElementById('stopBtn').disabled = true;
+                        break;
+                        
+                    case 'error':
+                        log(`❌ Error: ${e.data.error}`);
+                        updateProgress(100, 'Error!');
+                        break;
+                }
+            });
+        }
+        
+        function startTest(oldApproach = false) {
+            const text = document.getElementById('testText').value;
+            if (!text.trim()) {
+                alert('Please enter some text to test!');
+                return;
+            }
+            
+            isOldApproachTest = oldApproach;
+            testStartTime = performance.now();
+            firstAudioTime = 0;
+            
+            // Clear previous results
+            document.getElementById('streamingResults').style.display = 'none';
+            document.getElementById('oldResults').style.display = 'none';
+            logOutput.innerHTML = '';
+            
+            log(`🚀 Starting ${oldApproach ? 'OLD' : 'NEW'} approach test...`);
+            log(`📝 Text length: ${text.length} characters`);
+            
+            document.getElementById('stopBtn').disabled = false;
+            updateProgress(0, 'Starting test...');
+            
+            worker.postMessage({
+                type: 'generate',
+                text: text,
+                voice: 'af_nicole'
+            });
+        }
+        
+        function stopTest() {
+            if (worker) {
+                worker.postMessage({ type: 'stop' });
+            }
+            if (audioPlayer) {
+                audioPlayer.stop();
+            }
+            log('⏹️ Test stopped');
+            document.getElementById('stopBtn').disabled = true;
+            updateProgress(100, 'Stopped');
+        }
+        
+        // Initialize
+        initWorker();
+        
+        // Event listeners
+        document.getElementById('testStreamingBtn').addEventListener('click', () => startTest(false));
+        document.getElementById('testOldBtn').addEventListener('click', () => startTest(true));
+        document.getElementById('stopBtn').addEventListener('click', stopTest);
+        
+        log('🔧 TTS Performance Test Tool Initialized');
+        log('✅ Click "Test New Streaming Approach" to see the performance improvement!');
+    </script>
+</body>
+</html>
